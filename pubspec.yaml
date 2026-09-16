@@ -74,6 +74,7 @@ flutter:
     - assets/ycomm_logo.png
     - assets/ycomm_mark.png
     - assets/github_mark.png
+    - assets/app_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

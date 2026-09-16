@@ -10,6 +10,7 @@ import '../auth/auth_gate.dart';
 import '../search/search_page.dart';
 import 'topic_page.dart';
 import 'compose_page.dart';
+import '../../core/widgets/inline_composer.dart';
 
 final boardsProvider = FutureProvider<List<Json>>((ref) {
   ref.watch(sessionProvider);
@@ -23,6 +24,38 @@ class ForumPage extends ConsumerStatefulWidget {
 }
 
 class _ForumPageState extends ConsumerState<ForumPage> {
+  final draft = TextEditingController();
+  bool composing = false;
+  @override
+  void dispose() {
+    draft.dispose();
+    super.dispose();
+  }
+
+  Future<void> compose(List<Json> boards) async {
+    if (composing) return;
+    composing = true;
+    try {
+      FocusScope.of(context).unfocus();
+      if (!await requireSession(context, ref) || !mounted) return;
+      final result = await openPage<bool>(
+        context,
+        ComposePage(
+          boards: boards,
+          initialSlug: selected,
+          initialContent: draft.text,
+          onContentChanged: (text) => draft.text = text,
+        ),
+      );
+      if (result == true && mounted) {
+        draft.clear();
+        setState(() => revision++);
+      }
+    } finally {
+      composing = false;
+    }
+  }
+
   String? selected;
   int revision = 0;
   @override
@@ -137,20 +170,13 @@ class _ForumPageState extends ConsumerState<ForumPage> {
           ),
         ),
       ),
-      floatingActionButton: boards.value?.isNotEmpty == true
-          ? FloatingActionButton.extended(
-              onPressed: () async {
-                if (!await requireSession(context, ref) || !context.mounted) {
-                  return;
-                }
-                final result = await openPage<bool>(
-                  context,
-                  ComposePage(boards: boards.value!, initialSlug: selected),
-                );
-                if (result == true && mounted) setState(() => revision++);
-              },
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('发起讨论'),
+      bottomNavigationBar: boards.value?.isNotEmpty == true
+          ? InlineComposer(
+              controller: draft,
+              inputKey: const ValueKey('community-composer'),
+              hint: '分享新鲜事…',
+              sendLabel: '继续发布',
+              onSend: () => compose(boards.value!),
             )
           : null,
     );

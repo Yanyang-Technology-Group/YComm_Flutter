@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.yanyang" "\0"
-            VALUE "FileDescription", "ycomm_client" "\0"
+            VALUE "FileDescription", "晏阳社区" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "ycomm_client" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.yanyang. All rights reserved." "\0"
             VALUE "OriginalFilename", "ycomm_client.exe" "\0"
-            VALUE "ProductName", "ycomm_client" "\0"
+            VALUE "ProductName", "晏阳社区" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

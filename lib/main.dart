@@ -211,7 +211,8 @@ class _AppShellState extends ConsumerState<AppShell>
                     ],
                   )
                 : body,
-            bottomNavigationBar: wide
+            bottomNavigationBar:
+                wide || MediaQuery.viewInsetsOf(context).bottom > 0
                 ? null
                 : DecoratedBox(
                     decoration: BoxDecoration(

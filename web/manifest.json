@@ -1,6 +1,6 @@
 {
-    "name": "ycomm_client",
-    "short_name": "ycomm_client",
+    "name": "晏阳社区",
+    "short_name": "晏阳社区",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

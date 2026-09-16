@@ -12,7 +12,11 @@ class ComposePage extends ConsumerStatefulWidget {
     this.topicId,
     this.replyTo,
     this.replyName,
+    this.initialContent = '',
+    this.onContentChanged,
   });
+  final String initialContent;
+  final ValueChanged<String>? onContentChanged;
   final List<Json> boards;
   final String? initialSlug, topicId, replyTo, replyName;
   @override
@@ -31,11 +35,16 @@ class _ComposePageState extends ConsumerState<ComposePage> {
     slug = widget.boards.any((b) => b['slug'] == widget.initialSlug)
         ? widget.initialSlug
         : widget.boards.firstOrNull?['slug'];
+    content.text = widget.initialContent;
     title.addListener(changed);
     content.addListener(changed);
   }
 
-  void changed() => setState(() {});
+  void changed() {
+    widget.onContentChanged?.call(content.text);
+    setState(() {});
+  }
+
   @override
   void dispose() {
     title.dispose();
@@ -152,6 +161,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: title,
+                    autofocus: widget.initialContent.isNotEmpty,
                     enabled: !busy,
                     maxLength: 120,
                     maxLines: 2,

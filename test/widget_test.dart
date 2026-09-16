@@ -7,15 +7,31 @@ import 'package:ycomm_client/core/network/community_api.dart';
 import 'package:ycomm_client/features/profile/appearance_page.dart';
 import 'package:ycomm_client/features/auth/login_page.dart';
 import 'package:ycomm_client/features/forum/compose_page.dart';
+import 'package:ycomm_client/features/forum/topic_page.dart';
+import 'package:ycomm_client/core/state/session.dart';
 
 class TestApi extends CommunityApi {
   final calls = <String>[];
-  bool fail = false;
+  bool fail = false, signedIn = false, failSend = false;
+  Json? sentBody;
+  @override
+  Future<Json> post(String path, [Json? body]) async {
+    calls.add(path);
+    sentBody = body;
+    if (failSend) throw const RequestFailure('发送失败', 'NETWORK');
+    return {};
+  }
+
   @override
   Future<Json> get(String path, {Json? query}) async {
     calls.add(path);
     if (fail) throw const RequestFailure('连接中断', 'NETWORK');
     if (path == '/auth/me') {
+      if (signedIn) {
+        return {
+          'user': {'id': 'u1', 'username': 'member'},
+        };
+      }
       throw const RequestFailure('请登录', 'UNAUTHENTICATED');
     }
     if (path == '/forum/boards') {
@@ -105,7 +121,12 @@ void main() {
       await tester.tap(find.text('真实接口讨论'));
       await tester.pumpAndSettle();
       expect(find.text('正文内容'), findsOneWidget);
-      await tester.tap(find.text('参与讨论'));
+      await tester.enterText(
+        find.byKey(const ValueKey('reply-composer')),
+        '回复内容',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('发送'));
       await tester.pumpAndSettle();
       expect(find.byType(LoginPage), findsOneWidget);
       await tester.tap(find.byType(BackButton));
@@ -171,6 +192,78 @@ void main() {
     await tester.tap(find.text('搜索命中'));
     await tester.pumpAndSettle();
     expect(find.text('正文内容'), findsOneWidget);
+  });
+  testWidgets('inline composers accept input and focus reply target', (
+    tester,
+  ) async {
+    await app(tester, TestApi());
+    expect(find.byType(FloatingActionButton), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('community-composer')),
+      '新的想法',
+    );
+    expect(tester.testTextInput.isVisible, isTrue);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('真实接口讨论'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('回复').first);
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    await tester.enterText(
+      find.byKey(const ValueKey('reply-composer')),
+      '我的回复',
+    );
+    expect(find.text('回复 member'), findsOneWidget);
+    await tester.tap(find.byTooltip('取消回复对象'));
+    await tester.pumpAndSettle();
+    expect(find.text('我的回复'), findsOneWidget);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getBottomLeft(find.byKey(const ValueKey('reply-composer'))).dy,
+      lessThanOrEqualTo(544),
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃回复？'), findsOneWidget);
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(find.text('我的回复'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('reply failure preserves draft and retry sends reply target', (
+    tester,
+  ) async {
+    final api = TestApi()..signedIn = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [communityProvider.overrideWithValue(api)],
+        child: Consumer(
+          builder: (context, ref, _) {
+            ref.watch(sessionProvider);
+            return const MaterialApp(home: TopicPage(id: 't1'));
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('回复').first);
+    await tester.enterText(
+      find.byKey(const ValueKey('reply-composer')),
+      '保留的回复',
+    );
+    await tester.pumpAndSettle();
+    api.failSend = true;
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+    expect(find.text('保留的回复'), findsOneWidget);
+    expect(api.sentBody, {'content': '保留的回复', 'replyToPostId': 'p1'});
+    api.failSend = false;
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpAndSettle();
+    expect(find.text('保留的回复'), findsNothing);
+    expect(find.text('回复 member'), findsNothing);
   });
   testWidgets('compose protects unsubmitted content', (tester) async {
     await tester.pumpWidget(

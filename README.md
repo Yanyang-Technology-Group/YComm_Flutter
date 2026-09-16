@@ -72,6 +72,12 @@ flutter test integration_test/github_webview_test.dart -d linux
 Linux 的 WebView 使用系统代理配置。若授权页无法加载，请检查网络及代理协议；HTTP CONNECT 代理应使用 `http://` 代理地址，目标网站仍通过 HTTPS 连接。
 
 
+## 发布与回复
+
+社区底部输入框可直接输入正文，再补充标题与版块发布；讨论详情底部可直接输入并发送回复。点击楼层回复可指定对象，取消对象不会清空文字。发送失败保留草稿，离开未发送回复时确认丢弃。手机输入时显示系统键盘，桌面可直接键入。
+
+应用名称为「晏阳社区」，各平台图标由原始晏阳 Logo 生成；重新生成可运行 `python3 tool/generate_icons.py`（需要 Pillow）。
+
 ## Android APK
 
 包名：`cn.yanyn.community`。推送到 `main` 或手动运行 **Android APK** 工作流后，先执行静态分析与测试，再生成签名的 Release APK。在 Actions 对应运行的 Artifacts 中下载 `ycomm-android-运行编号`，包含 APK 与 SHA-256 校验文件。PR 仅执行检查，不读取签名密钥。
