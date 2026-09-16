@@ -1,4 +1,4 @@
-package com.yanyang.ycomm_client
+package cn.yanyn.community
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -70,3 +70,23 @@ flutter test integration_test/github_webview_test.dart -d linux
 ```
 
 Linux 的 WebView 使用系统代理配置。若授权页无法加载，请检查网络及代理协议；HTTP CONNECT 代理应使用 `http://` 代理地址，目标网站仍通过 HTTPS 连接。
+
+
+## Android APK
+
+包名：`cn.yanyn.community`。推送到 `main` 或手动运行 **Android APK** 工作流后，先执行静态分析与测试，再生成签名的 Release APK。在 Actions 对应运行的 Artifacts 中下载 `ycomm-android-运行编号`，包含 APK 与 SHA-256 校验文件。PR 仅执行检查，不读取签名密钥。
+
+工作流始终使用 GitHub Secrets 中保存的固定密钥：`ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`。缺少密钥时构建失败，不回退到调试签名。请备份原始密钥与密码，后续更新必须复用同一证书。版本号取自 `pubspec.yaml`，Android 构建号随工作流运行编号递增。
+
+本地 Release 构建需创建被 Git 忽略的 `android/key.properties`：
+
+```properties
+storeFile=/absolute/path/to/release.jks
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=ycomm
+```
+
+## 许可证
+
+本项目采用 [GNU Affero General Public License v3.0 或更高版本](LICENSE)（AGPL-3.0-or-later）。
