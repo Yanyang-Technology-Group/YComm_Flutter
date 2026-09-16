@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/community_api.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../auth/auth_gate.dart';
 
 class UserPage extends ConsumerStatefulWidget {
@@ -47,7 +48,11 @@ class _UserPageState extends ConsumerState<UserPage> {
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: PersonAvatar(name, size: 80),
+                  child: UserAvatar(
+                    name,
+                    size: 80,
+                    path: user['avatarPath'] as String?,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Text(name, style: Theme.of(context).textTheme.headlineLarge),

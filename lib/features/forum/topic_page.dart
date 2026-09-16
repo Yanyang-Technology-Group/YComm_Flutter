@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/community_api.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../auth/auth_gate.dart';
 import '../profile/user_page.dart';
 import '../../core/widgets/inline_composer.dart';
@@ -261,7 +262,12 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                           children: [
                             Row(
                               children: [
-                                PersonAvatar(author, size: 38),
+                                UserAvatar(
+                                  author,
+                                  size: 38,
+                                  path: p['authorAvatarPath'] as String?,
+                                  username: p['authorUsername'] as String?,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: InkWell(

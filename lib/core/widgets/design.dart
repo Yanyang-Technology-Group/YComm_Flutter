@@ -222,7 +222,11 @@ class PersonAvatar extends StatelessWidget {
         ),
       ),
     );
-    final uri = Uri.tryParse(url ?? '');
+    final raw = url?.trim() ?? '';
+    final parsed = Uri.tryParse(raw);
+    final uri = raw.isEmpty || parsed == null
+        ? null
+        : Uri.parse('$siteOrigin/').resolveUri(parsed);
     return ClipRRect(
       borderRadius: BorderRadius.circular(size * .36),
       child: Container(
@@ -232,7 +236,11 @@ class PersonAvatar extends StatelessWidget {
         child: uri != null && ['http', 'https'].contains(uri.scheme)
             ? Image.network(
                 uri.toString(),
+                key: ValueKey(uri.toString()),
+                semanticLabel: '$name 的头像',
                 fit: BoxFit.cover,
+                frameBuilder: (_, child, frame, sync) =>
+                    frame == null ? fallback : child,
                 errorBuilder: (_, e, s) => fallback,
               )
             : fallback,

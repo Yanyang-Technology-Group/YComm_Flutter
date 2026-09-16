@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/community_api.dart';
 import '../../core/state/session.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../core/widgets/app_logo.dart';
 import '../../core/widgets/paged_feed.dart';
 import '../auth/auth_gate.dart';
@@ -212,7 +213,13 @@ class TopicTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  PersonAvatar(author),
+                  UserAvatar(
+                    author,
+                    path: preview is Map
+                        ? preview['authorAvatarPath'] as String?
+                        : null,
+                    username: topic['authorUsername'] as String?,
+                  ),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Text(

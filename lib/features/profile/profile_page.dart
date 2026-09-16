@@ -5,6 +5,7 @@ import '../../core/network/community_api.dart';
 import '../../core/state/session.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../auth/auth_gate.dart';
 import '../forum/forum_page.dart';
 import '../forum/topic_page.dart';
@@ -42,7 +43,7 @@ class ProfilePage extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          PersonAvatar(
+                          UserAvatar(
                             user == null
                                 ? '晏'
                                 : str(
@@ -50,6 +51,8 @@ class ProfilePage extends ConsumerWidget {
                                     str(user['username']),
                                   ),
                             size: 64,
+                            path: user?['avatarPath'] as String?,
+                            username: user?['username'] as String?,
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -310,11 +313,7 @@ class _MyContentPageState extends ConsumerState<MyContentPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 children: list.isEmpty
-                    ? [
-                        StatePanel(
-                          title: widget.resources ? '暂无资源' : '暂无讨论',
-                        ),
-                      ]
+                    ? [StatePanel(title: widget.resources ? '暂无资源' : '暂无讨论')]
                     : list
                           .map(
                             (item) => Column(

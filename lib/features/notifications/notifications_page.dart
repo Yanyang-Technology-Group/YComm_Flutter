@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/community_api.dart';
 import '../../core/state/session.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../auth/auth_gate.dart';
 import '../forum/topic_page.dart';
 import '../downloads/resource_page.dart';
@@ -194,6 +195,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     return Column(
                       children: list.map((n) {
                         final fresh = (n['unreadCount'] as num? ?? 0) > 0;
+                        final actor = jsonList(n['actors']).firstOrNull;
                         return Material(
                           color: fresh
                               ? Theme.of(context).colorScheme.primaryContainer
@@ -208,8 +210,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                 children: [
                                   Badge(
                                     isLabelVisible: fresh,
-                                    child: PersonAvatar(
-                                      str(n['title']),
+                                    child: UserAvatar(
+                                      actor == null
+                                          ? '晏'
+                                          : str(
+                                              actor['displayName'],
+                                              str(actor['username']),
+                                            ),
+                                      username: actor?['username'] as String?,
                                       size: 42,
                                     ),
                                   ),
