@@ -1,0 +1,401 @@
+{
+  "/forum/boards": {
+    "ok": true,
+    "data": {
+      "boards": [
+        {
+          "id": "cbd417fe-485d-4496-a136-a0ffc4b9a197",
+          "slug": "guest-a",
+          "name": "访客频道",
+          "description": "欢迎加入晏阳，进入qq群查看更多详情",
+          "parent_id": null,
+          "sort_order": 100,
+          "access_policy": {
+            "minLevel": 0,
+            "visibility": "public",
+            "requireInvite": false
+          },
+          "topic_count": 2,
+          "post_count": 2,
+          "posting_policy": "all",
+          "archived_at": null,
+          "created_at": "2026-09-13T10:31:16.363Z",
+          "updated_at": "2026-09-13T22:17:26.471Z",
+          "policy": {
+            "visibility": "public",
+            "minLevel": 0,
+            "requireInvite": false
+          }
+        }
+      ]
+    }
+  },
+  "/forum/boards/guest-a/topics": {
+    "ok": true,
+    "data": {
+      "total": 2,
+      "topics": [
+        {
+          "id": "b7e8e8d1-1039-4cf2-92ce-adc0cf511409",
+          "board_id": "cbd417fe-485d-4496-a136-a0ffc4b9a197",
+          "author_id": "e10a0325-0455-461f-9bdc-8888f5be244e",
+          "title": "Hello",
+          "slug": "5105620c8aed",
+          "is_pinned": false,
+          "is_locked": false,
+          "status": "published",
+          "reply_count": 0,
+          "view_count": 7,
+          "last_post_at": null,
+          "last_post_author_id": null,
+          "created_at": "2026-09-13T13:27:22.292Z",
+          "updated_at": null,
+          "deleted_at": null,
+          "deleted_by": null,
+          "authorUsername": "shenshui6",
+          "authorDisplayName": "深水6",
+          "authorLevel": 0,
+          "preview": {
+            "firstPost": {
+              "topicId": "b7e8e8d1-1039-4cf2-92ce-adc0cf511409",
+              "contentExcerpt": "Hi guys!\n![](/api/uploads/images/790c3d53-36eb-473b-a664-e7f207746c9c.jpg)",
+              "authorUsername": "shenshui6",
+              "authorDisplayName": "深水6",
+              "authorAvatarPath": "https://img.remit.ee/i/e2paEv9y7ZaK",
+              "likeCount": 0
+            },
+            "topReplies": []
+          }
+        },
+        {
+          "id": "7f7dcb91-9f4f-415d-aad1-10c1adcfcdf7",
+          "board_id": "cbd417fe-485d-4496-a136-a0ffc4b9a197",
+          "author_id": null,
+          "title": "1hyw",
+          "slug": "2c79b020247d",
+          "is_pinned": false,
+          "is_locked": false,
+          "status": "published",
+          "reply_count": 0,
+          "view_count": 6,
+          "last_post_at": null,
+          "last_post_author_id": null,
+          "created_at": "2026-09-13T15:51:08.637Z",
+          "updated_at": null,
+          "deleted_at": null,
+          "deleted_by": null,
+          "authorUsername": null,
+          "authorDisplayName": null,
+          "authorLevel": null,
+          "preview": {
+            "firstPost": {
+              "topicId": "7f7dcb91-9f4f-415d-aad1-10c1adcfcdf7",
+              "contentExcerpt": "hyw",
+              "authorUsername": null,
+              "authorDisplayName": null,
+              "authorAvatarPath": null,
+              "likeCount": 0
+            },
+            "topReplies": []
+          }
+        }
+      ]
+    }
+  },
+  "/downloads/categories": {
+    "ok": true,
+    "data": {
+      "categories": []
+    }
+  },
+  "/downloads/resources": {
+    "ok": true,
+    "data": {
+      "resources": [],
+      "total": 0
+    }
+  },
+  "/downloads/cards": {
+    "ok": true,
+    "data": {
+      "cards": [
+        {
+          "id": "93f5df50-0ac1-4034-a066-d8d980af083c",
+          "parentId": "cff44aa3-28af-4b71-8a09-b31807a6a42c",
+          "title": "ZuluJDK",
+          "subtitle": "OpenJDK·Azul  |  推荐",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "a1c669b8-c306-44a5-b7cb-aeaa58dcab9e",
+          "parentId": "93f5df50-0ac1-4034-a066-d8d980af083c",
+          "title": "Windows",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "b38a8ef2-8c85-4c65-8c26-816b64ca39b5",
+          "parentId": "93f5df50-0ac1-4034-a066-d8d980af083c",
+          "title": "Linux",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "ba694c93-f8ec-483f-aa1e-0d7de00f4273",
+          "parentId": "a1c669b8-c306-44a5-b7cb-aeaa58dcab9e",
+          "title": "Windows x86 64-bit",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "921b696e-a2c9-4f91-9e6b-d33a492ffb5e",
+          "parentId": "a1c669b8-c306-44a5-b7cb-aeaa58dcab9e",
+          "title": "Windows ARM 64-bit",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "74442b11-ec2f-4ab6-ab3c-113f40a77acb",
+          "parentId": "921b696e-a2c9-4f91-9e6b-d33a492ffb5e",
+          "title": "MSI文件",
+          "subtitle": "Windows ARM 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-win_x64.msi",
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "bd9cb410-5752-4533-8e99-3d3a1c143717",
+          "parentId": "ba694c93-f8ec-483f-aa1e-0d7de00f4273",
+          "title": "MSI文件",
+          "subtitle": "Windows x86 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-win_x64.msi",
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "fb2498ae-cba8-4ad1-bbfd-317674333996",
+          "parentId": "b38a8ef2-8c85-4c65-8c26-816b64ca39b5",
+          "title": "Linux x86 64-bit",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "7731d272-7aad-4cf6-8de0-290ccf8f3c93",
+          "parentId": "fb2498ae-cba8-4ad1-bbfd-317674333996",
+          "title": "RMP文件",
+          "subtitle": "Linux x86 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.205-ca-jdk25.0.4.1-linux.x86_64.rpm",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "5bdb769b-c420-4523-bae5-e63aba9b846d",
+          "parentId": "fb2498ae-cba8-4ad1-bbfd-317674333996",
+          "title": "DEB文件",
+          "subtitle": "Linux x86 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.205-ca-jdk25.0.4.1-linux_amd64.deb",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "802ebf5c-ee76-494b-acd4-a57bc311d7cb",
+          "parentId": "fb2498ae-cba8-4ad1-bbfd-317674333996",
+          "title": "TGZ文件",
+          "subtitle": "Linux x86 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-linux_x64.tar.gz",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "e9554d26-79bb-4553-9f52-151abe830f66",
+          "parentId": "b38a8ef2-8c85-4c65-8c26-816b64ca39b5",
+          "title": "Linux ARM 64-bit",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "1b901559-692d-4209-bd36-e45299c6fdd1",
+          "parentId": "e9554d26-79bb-4553-9f52-151abe830f66",
+          "title": "RPM文件",
+          "subtitle": "Linux ARM 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.205-ca-jdk25.0.4.1-linux.aarch64.rpm",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "6d32b2ef-5091-4187-ac58-31458968eed8",
+          "parentId": "e9554d26-79bb-4553-9f52-151abe830f66",
+          "title": "DEB文件",
+          "subtitle": "Linux ARM 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.205-ca-jdk25.0.4.1-linux_arm64.deb",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "d81ddde8-fef6-4355-af89-d22279fa21bf",
+          "parentId": "e9554d26-79bb-4553-9f52-151abe830f66",
+          "title": "TGZ文件",
+          "subtitle": "Linux ARM 64-bit",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-linux_aarch64.tar.gz",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "40a473b8-c197-4e96-96ac-02fd1cadb9e5",
+          "parentId": "cff44aa3-28af-4b71-8a09-b31807a6a42c",
+          "title": "Eclipse Temurin JDK",
+          "subtitle": "OpenJDK · Adoptium",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "0f8cfad4-6a5a-404e-ba51-5bfee5f234b5",
+          "parentId": "40a473b8-c197-4e96-96ac-02fd1cadb9e5",
+          "title": "Windows",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "e27efe89-304d-4269-b685-200a89b7559b",
+          "parentId": "40a473b8-c197-4e96-96ac-02fd1cadb9e5",
+          "title": "Linux",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "6767cea5-9435-4b35-9161-2a889518f24f",
+          "parentId": "0f8cfad4-6a5a-404e-ba51-5bfee5f234b5",
+          "title": "Windows x64",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "1b521417-3ded-4eff-b7b4-fdae9409e3e0",
+          "parentId": "e27efe89-304d-4269-b685-200a89b7559b",
+          "title": "Linux x64",
+          "subtitle": "",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "9f598a88-e9ee-4b40-8b91-d56f25255be0",
+          "parentId": "1b521417-3ded-4eff-b7b4-fdae9409e3e0",
+          "title": "TGZ文件",
+          "subtitle": "Linux x64",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://adoptium.net/zh-CN/download?link=https%3A%2F%2Fgithub.com%2Fadoptium%2Ftemurin25-binaries%2Freleases%2Fdownload%2Fjdk-25.0.4%252B7%2FOpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.msi&vendor=Adoptium",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "874eaac0-64ca-4502-9d2b-65c8764ed9a4",
+          "parentId": "6767cea5-9435-4b35-9161-2a889518f24f",
+          "title": "MSI文件",
+          "subtitle": "Windows x64",
+          "subtitleUrl": null,
+          "kind": "redirect",
+          "redirectUrl": "https://adoptium.net/zh-CN/download?link=https%3A%2F%2Fgithub.com%2Fadoptium%2Ftemurin25-binaries%2Freleases%2Fdownload%2Fjdk-25.0.4%252B7%2FOpenJDK25U-jdk_x64_linux_hotspot_25.0.4_7.tar.gz&vendor=Adoptium",
+          "w": 1,
+          "h": 1,
+          "position": 0
+        },
+        {
+          "id": "cff44aa3-28af-4b71-8a09-b31807a6a42c",
+          "parentId": null,
+          "title": "Java 25",
+          "subtitle": "JAVA JDK 25",
+          "subtitleUrl": null,
+          "kind": "container",
+          "redirectUrl": null,
+          "w": 2,
+          "h": 1,
+          "position": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,172 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/network/community_api.dart';
+import '../../core/state/session.dart';
+import '../../core/widgets/design.dart';
+import '../../core/widgets/paged_feed.dart';
+import 'resource_page.dart';
+import 'resource_tile.dart';
+
+final cardsProvider = FutureProvider<List<Json>>((ref) async {
+  ref.watch(sessionProvider);
+  return jsonList(
+    (await ref.read(communityProvider).get('/downloads/cards'))['cards'],
+  );
+});
+
+class CardDirectoryPage extends ConsumerWidget {
+  const CardDirectoryPage({super.key, required this.id});
+  final String id;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+    appBar: AppBar(
+      title: const Text('资源目录'),
+      actions: [
+        IconButton(
+          tooltip: '复制目录链接',
+          onPressed: () => copyLink(context, '/downloads/card/$id'),
+          icon: const Icon(Icons.ios_share_rounded),
+        ),
+      ],
+    ),
+    body: SafeArea(
+      child: PageWidth(child: DirectoryView(parentId: id)),
+    ),
+  );
+}
+
+class DirectoryView extends ConsumerWidget {
+  const DirectoryView({super.key, this.parentId, this.header});
+  final String? parentId;
+  final Widget? header;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cards = ref.watch(cardsProvider);
+    Widget content;
+    if (cards.isLoading) {
+      content = ListView(children: [?header, const LoadingRows()]);
+    } else if (cards.hasError) {
+      content = ListView(
+        children: [
+          ?header,
+          ErrorPanel(cards.error!, () => ref.invalidate(cardsProvider)),
+        ],
+      );
+    } else {
+      final items = cards.value ?? [];
+      final parent = items.where((c) => c['id'] == parentId).firstOrNull;
+      final children = items.where((c) => c['parentId'] == parentId).toList()
+        ..sort(
+          (a, b) => ((a['position'] as num?) ?? 0).compareTo(
+            (b['position'] as num?) ?? 0,
+          ),
+        );
+      if (parentId != null && parent == null) {
+        return ListView(
+          children: [
+            ErrorPanel(
+              const RequestFailure('这个目录不存在，或当前账号无权访问。'),
+              () => ref.invalidate(cardsProvider),
+            ),
+          ],
+        );
+      }
+      final intro = header ?? PageIntro(str(parent?['title']));
+      if (parent?['kind'] == 'redirect') {
+        return ListView(
+          children: [
+            intro,
+            StatePanel(
+              title: '外部资源',
+              message:
+                  Uri.tryParse(str(parent?['redirectUrl']))?.host ?? '外部网站',
+              icon: Icons.open_in_new_rounded,
+              action: FilledButton.icon(
+                onPressed: () =>
+                    externalLink(context, str(parent?['redirectUrl'])),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('打开资源'),
+              ),
+            ),
+          ],
+        );
+      }
+      if (parent != null && children.isEmpty) {
+        return PagedFeed(
+          path: '/downloads/resources',
+          listKey: 'resources',
+          emptyTitle: '暂无资源',
+          emptyMessage: '',
+          header: intro,
+          itemBuilder: (r) => ResourceTile(
+            r,
+            onTap: () => openPage(context, ResourcePage(id: str(r['id']))),
+          ),
+        );
+      }
+      content = ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          intro,
+          if (children.isEmpty)
+            const StatePanel(title: '暂无目录', icon: Icons.folder_open_rounded),
+          ...children.map((card) {
+            final external = card['kind'] == 'redirect';
+            final count = items
+                .where((c) => c['parentId'] == card['id'])
+                .length;
+            return Column(
+              children: [
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  leading: Icon(
+                    external
+                        ? Icons.insert_drive_file_outlined
+                        : Icons.folder_open_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(
+                    str(card['title']),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  subtitle: Text(
+                    external ? '外部资源' : '$count 个项目',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  trailing: Icon(
+                    external
+                        ? Icons.north_east_rounded
+                        : Icons.chevron_right_rounded,
+                    size: 21,
+                  ),
+                  onTap: () =>
+                      openPage(context, CardDirectoryPage(id: str(card['id']))),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Divider(),
+                ),
+              ],
+            );
+          }),
+        ],
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(cardsProvider);
+        try {
+          await ref.read(cardsProvider.future);
+        } catch (_) {
+          /* Error panel owns feedback. */
+        }
+      },
+      child: content,
+    );
+  }
+}
