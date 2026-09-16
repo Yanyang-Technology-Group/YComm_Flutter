@@ -148,8 +148,9 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                         .map(
                           (b) => DropdownMenuItem(
                             value: str(b['slug']),
-                            child: Text(
+                            child: MarkdownText(
                               str(b['name']),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),

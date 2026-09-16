@@ -78,8 +78,13 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       await showDialog<void>(
         context: context,
         builder: (c) => AlertDialog(
-          title: Text(str(n['title'])),
-          content: SingleChildScrollView(child: Text(str(n['body']))),
+          title: MarkdownText(str(n['title'])),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: MarkdownContent(str(n['body'])),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c),
@@ -227,7 +232,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
+                                        MarkdownText(
                                           str(n['title']),
                                           style: Theme.of(context)
                                               .textTheme
@@ -235,7 +240,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                         ),
                                         if (str(n['body']).isNotEmpty) ...[
                                           const SizedBox(height: 6),
-                                          Text(
+                                          MarkdownText(
                                             str(n['body']),
                                             maxLines: 3,
                                             overflow: TextOverflow.ellipsis,

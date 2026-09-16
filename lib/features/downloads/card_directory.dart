@@ -36,33 +36,40 @@ class CardDirectoryPage extends ConsumerWidget {
   );
 }
 
-class DirectoryView extends ConsumerWidget {
+class DirectoryView extends ConsumerStatefulWidget {
   const DirectoryView({super.key, this.parentId, this.header});
   final String? parentId;
   final Widget? header;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DirectoryView> createState() => _DirectoryViewState();
+}
+
+class _DirectoryViewState extends ConsumerState<DirectoryView> {
+  int revision = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final cards = ref.watch(cardsProvider);
     Widget content;
     if (cards.isLoading) {
-      content = ListView(children: [?header, const LoadingRows()]);
+      content = ListView(children: [?widget.header, const LoadingRows()]);
     } else if (cards.hasError) {
       content = ListView(
         children: [
-          ?header,
+          ?widget.header,
           ErrorPanel(cards.error!, () => ref.invalidate(cardsProvider)),
         ],
       );
     } else {
       final items = cards.value ?? [];
-      final parent = items.where((c) => c['id'] == parentId).firstOrNull;
-      final children = items.where((c) => c['parentId'] == parentId).toList()
-        ..sort(
-          (a, b) => ((a['position'] as num?) ?? 0).compareTo(
-            (b['position'] as num?) ?? 0,
-          ),
-        );
-      if (parentId != null && parent == null) {
+      final parent = items.where((c) => c['id'] == widget.parentId).firstOrNull;
+      final children =
+          items.where((c) => c['parentId'] == widget.parentId).toList()..sort(
+            (a, b) => ((a['position'] as num?) ?? 0).compareTo(
+              (b['position'] as num?) ?? 0,
+            ),
+          );
+      if (widget.parentId != null && parent == null) {
         return ListView(
           children: [
             ErrorPanel(
@@ -72,7 +79,8 @@ class DirectoryView extends ConsumerWidget {
           ],
         );
       }
-      final intro = header ?? PageIntro(str(parent?['title']));
+      final intro =
+          widget.header ?? PageIntro(str(parent?['title']), markdown: true);
       if (parent?['kind'] == 'redirect') {
         return ListView(
           children: [
@@ -94,6 +102,7 @@ class DirectoryView extends ConsumerWidget {
       }
       if (parent != null && children.isEmpty) {
         return PagedFeed(
+          key: ValueKey('${widget.parentId}:$revision'),
           path: '/downloads/resources',
           listKey: 'resources',
           emptyTitle: '暂无资源',
@@ -101,7 +110,10 @@ class DirectoryView extends ConsumerWidget {
           header: intro,
           itemBuilder: (r) => ResourceTile(
             r,
-            onTap: () => openPage(context, ResourcePage(id: str(r['id']))),
+            onTap: () async {
+              await openPage(context, ResourcePage(id: str(r['id'])));
+              if (mounted) setState(() => revision++);
+            },
           ),
         );
       }
@@ -130,7 +142,7 @@ class DirectoryView extends ConsumerWidget {
                         : Icons.folder_open_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  title: Text(
+                  title: MarkdownText(
                     str(card['title']),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),

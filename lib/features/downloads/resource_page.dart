@@ -13,10 +13,12 @@ import '../../core/network/api_result.dart';
 import '../../core/state/session.dart';
 import '../../core/widgets/design.dart';
 import '../auth/auth_gate.dart';
+import '../forum/content_actions.dart';
 
 class ResourcePage extends ConsumerStatefulWidget {
-  const ResourcePage({super.key, required this.id});
+  const ResourcePage({super.key, required this.id, this.onChanged});
   final String id;
+  final VoidCallback? onChanged;
   @override
   ConsumerState<ResourcePage> createState() => _ResourcePageState();
 }
@@ -24,6 +26,8 @@ class ResourcePage extends ConsumerStatefulWidget {
 class _ResourcePageState extends ConsumerState<ResourcePage> {
   late Future<Json> future;
   bool downloading = false;
+  bool extracting = false;
+  bool withdrawing = false;
   double? progress;
   String? savedPath;
   CancelToken? cancel;
@@ -42,8 +46,15 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
     super.dispose();
   }
 
-  Future<void> download() async {
-    if (downloading || !await requireSession(context, ref) || !mounted) return;
+  Future<void> download(Json resource) async {
+    if (downloading || extracting || withdrawing) return;
+    if (!await requireSession(context, ref) || !mounted) return;
+    if (downloading ||
+        extracting ||
+        withdrawing ||
+        resource['status'] == 'withdrawn') {
+      return;
+    }
     setState(() {
       downloading = true;
       progress = null;
@@ -135,8 +146,16 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
     }
   }
 
-  Future<void> extract() async {
+  Future<void> extract(Json resource) async {
+    if (downloading || extracting || withdrawing) return;
     if (!await requireSession(context, ref) || !mounted) return;
+    if (downloading ||
+        extracting ||
+        withdrawing ||
+        resource['status'] == 'withdrawn') {
+      return;
+    }
+    setState(() => extracting = true);
     try {
       final data = await ref
           .read(communityProvider)
@@ -146,6 +165,48 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
       if (mounted) notice(context, code.isEmpty ? '此资源没有提取码' : '提取码已复制：$code');
     } catch (e) {
       if (mounted) notice(context, e);
+    } finally {
+      if (mounted) setState(() => extracting = false);
+    }
+  }
+
+  Future<void> withdraw(Json resource) async {
+    if (withdrawing || downloading || extracting) return;
+    final user = ref.read(sessionProvider).value;
+    final identity = ContentIdentity.capture(user);
+    final confirmed = await confirmContentAction(
+      context,
+      title: '撤回这个资源？',
+      message: '撤回后资源将停止公开展示，也不能继续下载。',
+      confirmLabel: '撤回资源',
+    );
+    if (!confirmed || !mounted || downloading || extracting || withdrawing) {
+      return;
+    }
+    final current = ref.read(sessionProvider).value;
+    if (!identity.matches(current) ||
+        !canWithdrawResource(current, contentAuthorId(resource))) {
+      notice(context, '账号状态已变化，请重新操作');
+      return;
+    }
+    setState(() => withdrawing = true);
+    try {
+      await ref
+          .read(communityProvider)
+          .post('/downloads/resources/${widget.id}/withdraw');
+      if (!mounted) return;
+      setState(() {
+        future = Future.value({
+          'resource': {...resource, 'status': 'withdrawn'},
+        });
+        savedPath = null;
+      });
+      widget.onChanged?.call();
+      notice(context, '资源已撤回');
+    } catch (e) {
+      if (mounted) notice(context, e);
+    } finally {
+      if (mounted) setState(() => withdrawing = false);
     }
   }
 
@@ -196,6 +257,13 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
               );
             }
             final r = Json.from(s.data!['resource']);
+            final withdrawn = r['status'] == 'withdrawn';
+            final mayWithdraw =
+                !withdrawn &&
+                canWithdrawResource(
+                  ref.watch(sessionProvider).value,
+                  contentAuthorId(r),
+                );
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
@@ -215,12 +283,12 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(
+                MarkdownText(
                   str(r['title']),
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
                 const SizedBox(height: 12),
-                Text(
+                MarkdownText(
                   str(r['summary'], '来自社区的资源分享'),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -237,6 +305,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                       SmallTag(str(r['versionLabel'])),
                     SmallTag('${r['downloadCount'] ?? 0} 次下载'),
                     SmallTag(r['sourceType'] == 'local' ? '文件下载' : '外部资源'),
+                    if (withdrawn) const SmallTag('已撤回'),
                   ],
                 ),
                 const SizedBox(height: 28),
@@ -250,7 +319,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                       : str(r['descriptionMd']),
                 ),
                 const SizedBox(height: 32),
-                if (downloading) ...[
+                if (downloading && !withdrawn) ...[
                   LinearProgressIndicator(value: progress),
                   const SizedBox(height: 12),
                   Text(
@@ -263,21 +332,40 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                     child: const Text('取消下载'),
                   ),
                 ],
-                FilledButton.icon(
-                  onPressed: downloading ? null : download,
-                  icon: const Icon(Icons.download_rounded),
-                  label: Text(
-                    downloading
-                        ? '正在下载…'
-                        : r['sourceType'] == 'local'
-                        ? '下载文件'
-                        : '获取资源',
+                if (!withdrawn) ...[
+                  FilledButton.icon(
+                    onPressed: downloading || extracting || withdrawing
+                        ? null
+                        : () => download(r),
+                    icon: const Icon(Icons.download_rounded),
+                    label: Text(
+                      downloading
+                          ? '正在下载…'
+                          : r['sourceType'] == 'local'
+                          ? '下载文件'
+                          : '获取资源',
+                    ),
                   ),
-                ),
-                if (r['sourceType'] != 'local')
-                  TextButton(
-                    onPressed: downloading ? null : extract,
-                    child: const Text('复制提取码'),
+                  if (r['sourceType'] != 'local')
+                    TextButton(
+                      onPressed: downloading || extracting || withdrawing
+                          ? null
+                          : () => extract(r),
+                      child: Text(extracting ? '正在获取…' : '复制提取码'),
+                    ),
+                ] else
+                  const StatePanel(
+                    title: '资源已撤回',
+                    message: '发布者已停止提供此资源。',
+                    icon: Icons.inventory_2_outlined,
+                  ),
+                if (mayWithdraw)
+                  TextButton.icon(
+                    onPressed: withdrawing || downloading || extracting
+                        ? null
+                        : () => withdraw(r),
+                    icon: const Icon(Icons.remove_circle_outline_rounded),
+                    label: Text(withdrawing ? '正在撤回…' : '撤回资源'),
                   ),
                 if (savedPath != null)
                   OutlinedButton.icon(

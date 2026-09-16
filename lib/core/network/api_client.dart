@@ -61,45 +61,29 @@ class ApiClient {
   Future<ApiResult<dynamic>> get(
     String path, {
     Map<String, dynamic>? queryParameters,
-  }) async {
-    try {
-      final response = await dio.get<dynamic>(
-        path,
-        queryParameters: queryParameters,
-      );
-      if (response.data is Map<String, dynamic>) {
-        return ApiResult.fromJson(response.data as Map<String, dynamic>);
-      }
-      return ApiResult.fromJson({
-        'ok': false,
-        'error': {'code': 'INVALID_RESPONSE', 'message': '服务器返回了无法识别的内容，请稍后重试'},
-      });
-    } on DioException catch (error) {
-      final response = error.response?.data;
-      if (response is Map<String, dynamic> && response['ok'] == false) {
-        return ApiResult.fromJson(response);
-      }
-      return ApiResult.fromJson({
-        'ok': false,
-        'error': {
-          'code': error.response?.statusCode?.toString() ?? 'NETWORK',
-          'message': error.response?.statusCode != null
-              ? '服务暂时不可用（${error.response!.statusCode}），请稍后重试'
-              : error.type == DioExceptionType.connectionTimeout ||
-                    error.type == DioExceptionType.receiveTimeout
-              ? '连接超时，请检查网络后重试'
-              : '网络暂时不可用，请检查连接后重试',
-        },
-      });
-    }
-  }
+  }) => _request('GET', path, queryParameters: queryParameters);
 
-  Future<ApiResult<dynamic>> post(
+  Future<ApiResult<dynamic>> post(String path, {Map<String, dynamic>? data}) =>
+      _request('POST', path, data: data);
+
+  Future<ApiResult<dynamic>> patch(String path, {Map<String, dynamic>? data}) =>
+      _request('PATCH', path, data: data);
+
+  Future<ApiResult<dynamic>> delete(String path) => _request('DELETE', path);
+
+  Future<ApiResult<dynamic>> _request(
+    String method,
     String path, {
     Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
-      final response = await dio.post<dynamic>(path, data: data);
+      final response = await dio.request<dynamic>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: Options(method: method),
+      );
       if (response.data is Map<String, dynamic>) {
         return ApiResult.fromJson(response.data as Map<String, dynamic>);
       }

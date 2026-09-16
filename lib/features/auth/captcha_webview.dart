@@ -32,7 +32,10 @@ class _CaptchaWebViewState extends State<CaptchaWebView> {
 
   void _fail() {
     _loadTimeout?.cancel();
-    if (mounted) widget.onError();
+    // Native initialization can fail synchronously while the parent is building.
+    scheduleMicrotask(() {
+      if (mounted) widget.onError();
+    });
   }
 
   Future<void> _initialize() async {

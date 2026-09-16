@@ -32,6 +32,9 @@ class CommunityApi {
       unwrap(await client.get(path, queryParameters: query));
   Future<Json> post(String path, [Json? data]) async =>
       unwrap(await client.post(path, data: data));
+  Future<Json> patch(String path, Json data) async =>
+      unwrap(await client.patch(path, data: data));
+  Future<Json> delete(String path) async => unwrap(await client.delete(path));
   Future<List<Json>> boards() async =>
       jsonList((await get('/forum/boards'))['boards']);
   Future<List<Json>> topics(String slug) async => jsonList(

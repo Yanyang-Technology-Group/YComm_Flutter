@@ -126,7 +126,10 @@ class _ForumPageState extends ConsumerState<ForumPage> {
                                     (b) => Padding(
                                       padding: const EdgeInsets.only(right: 8),
                                       child: ChoiceChip(
-                                        label: Text(str(b['name'])),
+                                        label: MarkdownText(
+                                          str(b['name']),
+                                          maxLines: 1,
+                                        ),
                                         selected: b['slug'] == board['slug'],
                                         showCheckmark: false,
                                         onSelected: (_) => setState(
@@ -160,8 +163,10 @@ class _ForumPageState extends ConsumerState<ForumPage> {
                       ),
                       itemBuilder: (t) => TopicTile(
                         t,
-                        onTap: () =>
-                            openPage(context, TopicPage(id: str(t['id']))),
+                        onTap: () async {
+                          await openPage(context, TopicPage(id: str(t['id'])));
+                          if (mounted) setState(() => revision++);
+                        },
                       ),
                     );
                   },
@@ -197,11 +202,7 @@ class TopicTile extends StatelessWidget {
       topic['authorDisplayName'],
       str(topic['authorUsername'], '访客'),
     );
-    final excerpt = preview is Map
-        ? str(preview['contentExcerpt'])
-              .replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), '[图片]')
-              .replaceAll(RegExp(r'[#*`>]'), '')
-        : '';
+    final excerpt = preview is Map ? str(preview['contentExcerpt']) : '';
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -244,7 +245,7 @@ class TopicTile extends StatelessWidget {
                 const SmallTag('置顶'),
                 const SizedBox(height: 7),
               ],
-              Text(
+              MarkdownText(
                 str(topic['title']),
                 style: Theme.of(context).textTheme.titleMedium,
                 maxLines: 3,
@@ -252,7 +253,7 @@ class TopicTile extends StatelessWidget {
               ),
               if (excerpt.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(
+                MarkdownText(
                   excerpt,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

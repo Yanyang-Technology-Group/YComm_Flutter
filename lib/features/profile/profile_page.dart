@@ -11,6 +11,9 @@ import '../forum/forum_page.dart';
 import '../forum/topic_page.dart';
 import '../downloads/resource_tile.dart';
 import '../downloads/resource_page.dart';
+import '../admin/admin_access.dart';
+import '../admin/admin_page.dart';
+import '../forum/my_posts_page.dart';
 import 'about_page.dart';
 import 'appearance_page.dart';
 import 'user_page.dart';
@@ -132,6 +135,15 @@ class ProfilePage extends ConsumerWidget {
                   },
                 ),
                 SettingsRow(
+                  icon: Icons.reply_all_rounded,
+                  title: '我的回复',
+                  onTap: () async {
+                    if (await requireSession(context, ref) && context.mounted) {
+                      openPage(context, const MyPostsPage());
+                    }
+                  },
+                ),
+                SettingsRow(
                   icon: Icons.inventory_2_outlined,
                   title: '我的资源',
                   onTap: () async {
@@ -142,6 +154,20 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ],
             ),
+            if (AdminAccess(user).isStaff) ...[
+              const SizedBox(height: 26),
+              const _SectionLabel('社区管理'),
+              SettingsGroup(
+                children: [
+                  SettingsRow(
+                    icon: Icons.admin_panel_settings_outlined,
+                    title: '管理中心',
+                    subtitle: '内容审核与社区管理',
+                    onTap: () => openPage(context, const AdminDashboardPage()),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 26),
             const _SectionLabel('偏好与帮助'),
             SettingsGroup(
@@ -336,17 +362,23 @@ class _MyContentPageState extends ConsumerState<MyContentPage> {
                                 widget.resources
                                     ? ResourceTile(
                                         item,
-                                        onTap: () => openPage(
-                                          context,
-                                          ResourcePage(id: str(item['id'])),
-                                        ),
+                                        onTap: () async {
+                                          await openPage(
+                                            context,
+                                            ResourcePage(id: str(item['id'])),
+                                          );
+                                          if (mounted) setState(reload);
+                                        },
                                       )
                                     : TopicTile(
                                         item,
-                                        onTap: () => openPage(
-                                          context,
-                                          TopicPage(id: str(item['id'])),
-                                        ),
+                                        onTap: () async {
+                                          await openPage(
+                                            context,
+                                            TopicPage(id: str(item['id'])),
+                                          );
+                                          if (mounted) setState(reload);
+                                        },
                                       ),
                               ],
                             ),

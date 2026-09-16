@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../network/community_api.dart';
+import 'markdown_text.dart';
+
+export 'markdown_text.dart';
 
 const siteOrigin = 'https://community.yanyn.cn';
 Future<T?> openPage<T>(BuildContext context, Widget page) =>
@@ -52,9 +56,10 @@ class PageWidth extends StatelessWidget {
 }
 
 class PageIntro extends StatelessWidget {
-  const PageIntro(this.title, {super.key, this.action});
+  const PageIntro(this.title, {super.key, this.action, this.markdown = false});
   final String title;
   final Widget? action;
+  final bool markdown;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
@@ -63,10 +68,12 @@ class PageIntro extends StatelessWidget {
         Expanded(
           child: Semantics(
             header: true,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
+            child: markdown
+                ? MarkdownText(
+                    title,
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  )
+                : Text(title, style: Theme.of(context).textTheme.headlineLarge),
           ),
         ),
         ?action,
@@ -183,8 +190,9 @@ class LoadingRows extends StatelessWidget {
 }
 
 class SmallTag extends StatelessWidget {
-  const SmallTag(this.text, {super.key});
+  const SmallTag(this.text, {super.key, this.markdown = false});
   final String text;
+  final bool markdown;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -193,13 +201,13 @@ class SmallTag extends StatelessWidget {
           .withValues(alpha: .6),
       borderRadius: BorderRadius.circular(7),
     ),
-    child: Text(
-      text,
+    child: DefaultTextStyle.merge(
       style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         color: Theme.of(context).colorScheme.onPrimaryContainer,
       ),
+      child: markdown ? MarkdownText(text) : Text(text),
     ),
   );
 }
@@ -256,11 +264,42 @@ class MarkdownContent extends StatelessWidget {
   Widget build(BuildContext context) => MarkdownBody(
     data: text,
     selectable: true,
-    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-        .copyWith(p: Theme.of(context).textTheme.bodyLarge, blockSpacing: 16),
+    extensionSet: md.ExtensionSet.gitHubFlavored,
+    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+      p: Theme.of(context).textTheme.bodyLarge,
+      a: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        decoration: TextDecoration.underline,
+      ),
+      checkbox: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        fontSize: 18,
+      ),
+      code: Theme.of(context).textTheme.bodyMedium!.copyWith(
+        fontFamily: 'monospace',
+        fontFamilyFallback: const [
+          'Noto Sans CJK SC',
+          'Noto Sans SC',
+          'Roboto',
+        ],
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      codeblockPadding: const EdgeInsets.all(12),
+      blockSpacing: 16,
+      tableColumnWidth: const IntrinsicColumnWidth(),
+    ),
     onTapLink: (_, href, _) {
       if (href != null) {
-        externalLink(context, Uri.parse(siteOrigin).resolve(href).toString());
+        final uri = Uri.tryParse(href);
+        if (uri == null) {
+          notice(context, '无法打开此链接');
+          return;
+        }
+        externalLink(context, Uri.parse(siteOrigin).resolveUri(uri).toString());
       }
     },
     imageBuilder: (uri, title, alt) {
@@ -272,6 +311,7 @@ class MarkdownContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Image.network(
           resolved.toString(),
+          semanticLabel: alt,
           fit: BoxFit.contain,
           errorBuilder: (_, e, s) => const Padding(
             padding: EdgeInsets.all(20),

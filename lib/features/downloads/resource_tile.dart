@@ -25,7 +25,7 @@ class ResourceTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
+                  child: MarkdownText(
                     str(resource['title']),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -36,7 +36,7 @@ class ResourceTile extends StatelessWidget {
             ),
             if (str(resource['summary']).isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(
+              MarkdownText(
                 str(resource['summary']),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

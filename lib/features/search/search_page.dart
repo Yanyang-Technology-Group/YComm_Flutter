@@ -106,8 +106,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     ...results!.map(
                       (t) => TopicTile(
                         t,
-                        onTap: () =>
-                            openPage(context, TopicPage(id: str(t['id']))),
+                        onTap: () async {
+                          await openPage(context, TopicPage(id: str(t['id'])));
+                          if (mounted) await search();
+                        },
                       ),
                     ),
                     Padding(

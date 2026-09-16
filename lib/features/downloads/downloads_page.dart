@@ -23,6 +23,7 @@ class DownloadsPage extends ConsumerStatefulWidget {
 class _DownloadsPageState extends ConsumerState<DownloadsPage> {
   String? category;
   bool directory = true;
+  int revision = 0;
   @override
   Widget build(BuildContext context) {
     final modeSwitch = Padding(
@@ -67,7 +68,7 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
       child: PageWidth(
         child: PagedFeed(
           key: ValueKey(
-            '$categoryId:${ref.watch(sessionProvider).value?['id']}',
+            '$categoryId:${ref.watch(sessionProvider).value?['id']}:$revision',
           ),
           path: '/downloads/resources',
           listKey: 'resources',
@@ -94,7 +95,7 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
                       (c) => Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: ChoiceChip(
-                          label: Text(str(c['name'])),
+                          label: MarkdownText(str(c['name']), maxLines: 1),
                           selected: categoryId == c['id'],
                           showCheckmark: false,
                           onSelected: (_) =>
@@ -119,7 +120,10 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
           ),
           itemBuilder: (r) => ResourceTile(
             r,
-            onTap: () => openPage(context, ResourcePage(id: str(r['id']))),
+            onTap: () async {
+              await openPage(context, ResourcePage(id: str(r['id'])));
+              if (mounted) setState(() => revision++);
+            },
           ),
         ),
       ),

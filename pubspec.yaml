@@ -42,10 +42,15 @@ dependencies:
   url_launcher: ^6.3.2
   path_provider: ^2.1.6
   flutter_markdown_plus: ^1.0.12
+  markdown: ^7.3.1
   open_filex: ^4.7.0
   flutter_localizations:
     sdk: flutter
   webview_all: ^1.4.1
+# objective_c 9.6.1 was retracted: its hook references unreleased arm64e APIs.
+# Pin the last compatible release until the upstream fix is published.
+dependency_overrides:
+  objective_c: 9.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
