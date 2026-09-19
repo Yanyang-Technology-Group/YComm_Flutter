@@ -32,6 +32,12 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# Visual Studio 18 / MSVC 14.51 起把 <experimental/coroutine> 的弃用提示升级为硬错误
+# C2338（"STL1011"），而 webview_all_windows 插件仍在使用该头文件，导致 Windows 构建
+# 直接失败。按编译器提示定义此宏放行；等上游插件迁移到 C++20 <coroutine> 后可移除。
+# 必须放在下面 include(generated_plugins.cmake) 之前，子目录才会继承该定义。
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
