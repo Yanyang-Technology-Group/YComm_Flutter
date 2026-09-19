@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_info.dart';
 import '../../core/widgets/design.dart';
 import 'profile_page.dart';
 
@@ -29,7 +30,7 @@ class AboutPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '移动客户端 1.0.0',
+              '移动客户端 $appVersionLabel',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -64,7 +65,7 @@ class AboutPage extends StatelessWidget {
                   onTap: () => showLicensePage(
                     context: context,
                     applicationName: '晏阳社区',
-                    applicationVersion: '1.0.0',
+                    applicationVersion: appVersionLabel,
                   ),
                 ),
               ],

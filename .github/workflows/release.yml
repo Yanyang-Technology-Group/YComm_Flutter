@@ -1,0 +1,545 @@
+name: Release
+
+# 版本编号格式（与 YComm_WebSite 保持一致）：
+#   vYYYY.MM.DD.commits
+# 其中 commits = 发布时点仓库的提交总数（git rev-list --count HEAD）
+# 例如：v2026.09.19.9
+#
+# 触发方式：
+#   1. push 到 main → 自动计算版本号，构建全平台产物并创建 GitHub Release
+#   2. 手动运行（workflow_dispatch）→ 可用输入框强制指定版本，不填则自动计算
+#
+# 各平台版本号落点（已按 Flutter 3.47.4 的源码逐项核实）：
+#   Android  versionName   = yyyy.mm.dd.commits（四段，Android 不限格式）
+#            versionCode   = yyyymmdd * 100 + commits % 100（单调递增，< 2^31-1）
+#   iOS      CFBundleShortVersionString = yyyy.mm.dd（Apple 只接受 1-3 段整数）
+#   macOS    CFBundleShortVersionString = yyyy.mm.dd
+#            CFBundleVersion            = commits
+#   Windows  VERSIONINFO FILEVERSION    = yyyy,mm,dd,commits
+#   Linux    generated_config.cmake     = yyyy.mm.dd+commits
+#   Web      version.json               = yyyy.mm.dd+commits（只读 pubspec.yaml）
+#   界面显示  统一用 --dart-define=YCOMM_VERSION=yyyy.mm.dd.commits
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '强制版本号（如 v2026.09.19.9，可省略 commits 只指定日期），留空则自动计算'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.4'
+
+jobs:
+  # ── 1. 静态分析与测试 ─────────────────────────────────────────────────
+  verify:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+
+  # ── 2. 解析版本号（所有构建任务共用） ─────────────────────────────────
+  version:
+    name: Resolve version
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      app_version: ${{ steps.resolve.outputs.app_version }}
+      semver_version: ${{ steps.resolve.outputs.semver_version }}
+      build_number: ${{ steps.resolve.outputs.build_number }}
+      version_code: ${{ steps.resolve.outputs.version_code }}
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve version
+        id: resolve
+        env:
+          FORCED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          COMMITS="$(git rev-list --count HEAD)"
+          TODAY="$(date -u +%Y.%m.%d)"
+
+          # 允许带 v 前缀；允许省略 commits（此时用提交总数补齐）
+          RAW="${FORCED_VERSION:-}"
+          RAW="${RAW#v}"
+          if [ -z "$RAW" ]; then
+            RAW="${TODAY}.${COMMITS}"
+          fi
+
+          # 只接受 yyyy.mm.dd 或 yyyy.mm.dd.commits；年月日不要求补零
+          if ! printf '%s' "$RAW" | grep -Eq '^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}(\.[0-9]+)?$'; then
+            echo "::error::版本号必须形如 yyyy.mm.dd[.commits]，收到：${RAW}"
+            exit 1
+          fi
+
+          IFS=. read -r YEAR MONTH DAY BUILD_NUMBER <<< "$RAW"
+          BUILD_NUMBER="${BUILD_NUMBER:-$COMMITS}"
+
+          # 归一化：月份/日期补零，与 YComm_WebSite 的 %m.%d 格式保持一致
+          YEAR="$(printf '%04d' "$((10#$YEAR))")"
+          MONTH="$(printf '%02d' "$((10#$MONTH))")"
+          DAY="$(printf '%02d' "$((10#$DAY))")"
+          BUILD_NUMBER="$((10#$BUILD_NUMBER))"
+
+          APP_VERSION="${YEAR}.${MONTH}.${DAY}.${BUILD_NUMBER}"
+          # pubspec.yaml / Apple / CMake 只接受 1-3 段整数
+          SEMVER_VERSION="${YEAR}.${MONTH}.${DAY}"
+          # Android versionCode：yyyymmdd * 100 + commits % 100
+          # 单调递增；最大 2099123199，小于 Google Play 的 2100000000 上限（有效到 2099 年）。
+          VERSION_CODE="$(( (10#$YEAR * 10000 + 10#$MONTH * 100 + 10#$DAY) * 100 + BUILD_NUMBER % 100 ))"
+          TAG="v${APP_VERSION}"
+
+          {
+            echo "app_version=${APP_VERSION}"
+            echo "semver_version=${SEMVER_VERSION}"
+            echo "build_number=${BUILD_NUMBER}"
+            echo "version_code=${VERSION_CODE}"
+            echo "tag=${TAG}"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## YComm Flutter ${TAG}"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "| --- | --- |"
+            echo "| 版本号 | \`${APP_VERSION}\` |"
+            echo "| 提交总数 | \`${COMMITS}\` |"
+            echo "| Android versionCode | \`${VERSION_CODE}\` |"
+            echo "| Apple / CMake 三段版本 | \`${SEMVER_VERSION}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 3. Android：签名 Release APK + AAB ───────────────────────────────
+  android:
+    name: Android (APK + AAB)
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+      VERSION_CODE: ${{ needs.version.outputs.version_code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Restore fixed signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          : "${KEYSTORE_BASE64:?缺少 Secrets.ANDROID_KEYSTORE_BASE64：Release 必须使用固定签名密钥，不会回退到调试签名}"
+          : "${STORE_PASSWORD:?缺少 Secrets.ANDROID_STORE_PASSWORD}"
+          : "${KEY_PASSWORD:?缺少 Secrets.ANDROID_KEY_PASSWORD}"
+          : "${KEY_ALIAS:?缺少 Secrets.ANDROID_KEY_ALIAS}"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' \
+            "$RUNNER_TEMP/release.jks" "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+      - name: Build APK
+        run: |
+          flutter build apk --release \
+            --build-name="$APP_VERSION" \
+            --build-number="$VERSION_CODE" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Build App Bundle
+        run: |
+          flutter build appbundle --release \
+            --build-name="$APP_VERSION" \
+            --build-number="$VERSION_CODE" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/ycomm-android-${APP_VERSION}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/ycomm-android-${APP_VERSION}.aab"
+          ls -l dist
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/release.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 4. iOS：未签名 xcarchive ──────────────────────────────────────────
+  # 未配置 Apple 证书，产物为未签名归档，导入 Xcode 后自行签名分发。
+  ios:
+    name: iOS (unsigned xcarchive)
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build unsigned archive
+        run: |
+          set -euo pipefail
+          flutter build ipa --release --no-codesign \
+            --build-name="$SEMVER_VERSION" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          ARCHIVE=$(find build/ios/archive -maxdepth 1 -name '*.xcarchive' -print -quit)
+          if [ -z "$ARCHIVE" ]; then
+            echo "::error::没有找到 .xcarchive，构建产物路径可能已变化"
+            find build/ios -maxdepth 3 -type d
+            exit 1
+          fi
+          echo "Archive: $ARCHIVE"
+          mkdir -p dist
+          ditto -c -k --keepParent "$ARCHIVE" "dist/ycomm-ios-${APP_VERSION}-unsigned.xcarchive.zip"
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 5. macOS：未签名 .app ─────────────────────────────────────────────
+  macos:
+    name: macOS
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build macOS app
+        run: |
+          set -euo pipefail
+          flutter build macos --release \
+            --build-name="$SEMVER_VERSION" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$APP" ]; then
+            echo "::error::没有找到 .app"
+            find build/macos/Build/Products -maxdepth 3 -type d
+            exit 1
+          fi
+          echo "App: $APP"
+          mkdir -p dist
+          ditto -c -k --keepParent "$APP" "dist/ycomm-macos-${APP_VERSION}.zip"
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 6. Linux：桌面版 tar.gz ───────────────────────────────────────────
+  linux:
+    name: Linux
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libwebkit2gtk-4.1-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build Linux bundle
+        run: |
+          set -euo pipefail
+          flutter build linux --release \
+            --build-name="$SEMVER_VERSION" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          BUNDLE="build/linux/x64/release/bundle"
+          if [ ! -d "$BUNDLE" ]; then
+            echo "::error::没有找到 Linux bundle"
+            find build/linux -maxdepth 4 -type d
+            exit 1
+          fi
+          mkdir -p dist
+          tar -czf "dist/ycomm-linux-${APP_VERSION}.tar.gz" -C "$BUNDLE" .
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 7. Web ────────────────────────────────────────────────────────────
+  web:
+    name: Web
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build web
+        run: |
+          set -euo pipefail
+          flutter build web --release \
+            --build-name="$SEMVER_VERSION" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          # version.json 来自 pubspec.yaml，Service Worker 靠它判断是否需要更新，
+          # 版本号必须随发布变化。
+          cat build/web/version.json
+          grep -q "${SEMVER_VERSION}" build/web/version.json \
+            || { echo "::error::version.json 未包含 ${SEMVER_VERSION}"; exit 1; }
+          mkdir -p dist
+          tar -czf "dist/ycomm-web-${APP_VERSION}.tar.gz" -C build/web .
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 8. Windows ────────────────────────────────────────────────────────
+  windows:
+    name: Windows
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
+      BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Inject version into pubspec.yaml
+        run: dart tool/set_version.dart "$env:SEMVER_VERSION+$env:BUILD_NUMBER"
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build Windows app
+        run: |
+          flutter build windows --release `
+            --build-name="$env:SEMVER_VERSION" `
+            --build-number="$env:BUILD_NUMBER" `
+            --dart-define=YCOMM_VERSION="$env:APP_VERSION"
+      - name: Collect artifacts
+        run: |
+          $release = "build\windows\x64\runner\Release"
+          if (-not (Test-Path $release)) {
+            Write-Error "没有找到 Windows Release 目录"
+            exit 1
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "$release\*" -DestinationPath "dist\ycomm-windows-$env:APP_VERSION.zip"
+          Get-ChildItem dist | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── 9. 打标签 + 创建 GitHub Release ───────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: [version, android, ios, macos, linux, web, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.version.outputs.tag }}
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          rm -f SHA256SUMS.txt
+          sha256sum ./* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create git tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 先同步远端 tag，避免看不到并发运行刚建好的同名 tag
+          git fetch --tags --force origin >/dev/null 2>&1 || true
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "tag $VERSION 已存在，跳过创建"
+            exit 0
+          fi
+
+          git tag "$VERSION"
+          for attempt in 1 2 3; do
+            if git push origin "refs/tags/$VERSION"; then
+              echo "tag $VERSION created"
+              exit 0
+            fi
+            echo "push attempt $attempt failed, retrying..."
+            sleep 3
+          done
+
+          git tag -d "$VERSION" >/dev/null 2>&1 || true
+          echo "::error::tag $VERSION 推送失败"
+          exit 1
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "::error::tag $VERSION 不存在，无法创建 Release"
+            exit 1
+          fi
+
+          {
+            echo "## YComm Flutter ${VERSION}"
+            echo ""
+            echo "版本号：\`${APP_VERSION}\`（yyyy.mm.dd.commits，与 YComm_WebSite 同格式）。"
+            echo ""
+            echo "### 平台产物"
+            echo ""
+            echo "| 平台 | 文件 | 说明 |"
+            echo "| --- | --- | --- |"
+            echo "| Android | \`ycomm-android-${APP_VERSION}.apk\` | 签名 Release APK |"
+            echo "| Android | \`ycomm-android-${APP_VERSION}.aab\` | Google Play 上传包 |"
+            echo "| iOS | \`ycomm-ios-${APP_VERSION}-unsigned.xcarchive.zip\` | 未签名归档，需自行签名 |"
+            echo "| macOS | \`ycomm-macos-${APP_VERSION}.zip\` | 未签名 .app |"
+            echo "| Linux | \`ycomm-linux-${APP_VERSION}.tar.gz\` | 桌面 bundle，需 webkit2gtk-4.1 |"
+            echo "| Web | \`ycomm-web-${APP_VERSION}.tar.gz\` | 静态站点，解压即用 |"
+            echo "| Windows | \`ycomm-windows-${APP_VERSION}.zip\` | 需系统 WebView2 |"
+            echo ""
+            echo "校验：\`sha256sum -c SHA256SUMS.txt\`"
+          } > release-notes.md
+
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release edit "$VERSION" --title "YComm Flutter ${VERSION}" --notes-file release-notes.md --latest
+          else
+            gh release create "$VERSION" --title "YComm Flutter ${VERSION}" --notes-file release-notes.md --latest
+          fi
+
+          gh release upload "$VERSION" dist/* --clobber

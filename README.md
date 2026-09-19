@@ -78,11 +78,52 @@ Linux 的 WebView 使用系统代理配置。若授权页无法加载，请检�
 
 应用名称为「晏阳社区」，各平台图标由原始晏阳 Logo 生成；重新生成可运行 `python3 tool/generate_icons.py`（需要 Pillow）。
 
-## Android APK
+## 版本号
 
-包名：`cn.yanyn.community`。推送到 `main` 或手动运行 **Android APK** 工作流后，先执行静态分析与测试，再生成签名的 Release APK。在 Actions 对应运行的 Artifacts 中下载 `ycomm-android-运行编号`，包含 APK 与 SHA-256 校验文件。PR 仅执行检查，不读取签名密钥。
+版本号规则与 [YComm_WebSite](https://github.com/Yanyang-Technology-Group/YComm_WebSite) 一致：
 
-工作流始终使用 GitHub Secrets 中保存的固定密钥：`ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`。缺少密钥时构建失败，不回退到调试签名。请备份原始密钥与密码，后续更新必须复用同一证书。版本号取自 `pubspec.yaml`，Android 构建号随工作流运行编号递增。
+```
+v<yyyy.mm.dd>.<commits>      例如 v2026.09.19.9
+```
+
+`commits` 是发布时点仓库的提交总数（`git rev-list --count HEAD`）。发布工作流自动计算该值，并把同一个版本号写入各平台元数据：
+
+| 平台 | 落点 | 值 |
+| --- | --- | --- |
+| 全部 | 「关于」页 | `yyyy.mm.dd.commits` |
+| Android | `versionName` / `versionCode` | `yyyy.mm.dd.commits` / `yyyymmdd * 100 + commits % 100` |
+| iOS、macOS | `CFBundleShortVersionString` / `CFBundleVersion` | `yyyy.mm.dd` / `commits` |
+| Windows | `VERSIONINFO` FILEVERSION | `yyyy,mm,dd,commits` |
+| Linux | `generated_config.cmake` | `yyyy.mm.dd+commits` |
+| Web | `version.json` | `yyyy.mm.dd+commits` |
+
+Apple 只接受 1–3 段整数，Windows `VERSIONINFO` 只接受四段 16 位整数，因此这两处无法直接写四段版本号；界面统一由 `--dart-define=YCOMM_VERSION` 拿到完整的 `yyyy.mm.dd.commits`。
+
+`pubspec.yaml` 提交的是占位值 `0.0.0+0`。Web 的 `version.json`（Service Worker 判断是否需要更新）和桌面平台的 CMake/Xcode 配置都只读 `pubspec.yaml`，所以发布时先由 `tool/set_version.dart` 写入真实版本再构建。本地构建未注入版本时「关于」页显示「开发版」。
+
+## 构建与发布
+
+`ci.yml` 只在 PR 上做静态分析与测试。`release.yml` 在推送到 `main` 或手动运行（`workflow_dispatch`）时：先静态分析与测试，再解析版本号，然后并行构建六个平台，最后打 tag 并创建 GitHub Release。手动运行可用输入框强制指定版本号（如 `v2026.09.19.9`），留空则自动计算。
+
+Release 附件：
+
+| 平台 | 产物 |
+| --- | --- |
+| Android | `ycomm-android-<版本>.apk`（签名）、`ycomm-android-<版本>.aab` |
+| iOS | `ycomm-ios-<版本>-unsigned.xcarchive.zip` |
+| macOS | `ycomm-macos-<版本>.zip` |
+| Linux | `ycomm-linux-<版本>.tar.gz` |
+| Web | `ycomm-web-<版本>.tar.gz` |
+| Windows | `ycomm-windows-<版本>.zip` |
+| 校验 | `SHA256SUMS.txt` |
+
+包名：`cn.yanyn.community`。iOS 与 macOS 产物未签名（仓库未配置 Apple 证书），iOS 归档需导入 Xcode 自行签名后分发。Linux bundle 需要 `webkit2gtk-4.1`，Windows 需要系统 WebView2。
+
+Android Release 始终使用 GitHub Secrets 中保存的固定密钥，缺少任一项时构建失败，不回退到调试签名：
+
+- `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`
+
+请备份原始密钥与密码，后续更新必须复用同一证书。
 
 本地 Release 构建需创建被 Git 忽略的 `android/key.properties`：
 

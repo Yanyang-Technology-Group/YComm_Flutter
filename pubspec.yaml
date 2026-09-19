@@ -16,7 +16,14 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+# 版本号规则与 YComm_WebSite 一致：yyyy.mm.dd.<commits>（例如 2026.09.19.9）。
+#
+# pubspec.yaml 要求合法 semver，所以这里只能写成 `<yyyy.mm.dd>+<commits>`（2026.09.19+9）。
+# 发布时由 .github/workflows/release.yml 调用 tool/set_version.dart 写入真实值；
+# Android 的 versionName 再由 --build-name 覆盖成四段的 yyyy.mm.dd.commits。
+#
+# 下面提交的是占位值：本地构建会显示「开发版」，发布产物一律由 CI 注入。
+version: 0.0.0+0
 
 environment:
   sdk: ^3.13.3
