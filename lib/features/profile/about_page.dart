@@ -7,6 +7,10 @@ import '../../core/widgets/design.dart';
 import '../update/update_ui.dart';
 import 'profile_page.dart';
 
+/// 客户端开源仓库。
+const String repositoryUrl =
+    'https://github.com/Yanyang-Technology-Group/YComm_Flutter';
+
 class AboutPage extends ConsumerWidget {
   const AboutPage({super.key});
 
@@ -60,6 +64,12 @@ class AboutPage extends ConsumerWidget {
                     onTap: () => externalLink(context, siteOrigin),
                   ),
                   SettingsRow(
+                    icon: Icons.source_rounded,
+                    title: '开源仓库',
+                    subtitle: 'Yanyang-Technology-Group/YComm_Flutter',
+                    onTap: () => externalLink(context, repositoryUrl),
+                  ),
+                  SettingsRow(
                     icon: Icons.description_outlined,
                     title: '服务协议',
                     onTap: () => externalLink(
@@ -85,6 +95,12 @@ class AboutPage extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 28),
+              Text(
+                '© 2025-2026 晏阳技术组',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
