@@ -260,7 +260,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # ── 5. macOS：未签名 .app ─────────────────────────────────────────────
+  # ── 5. macOS：签名（有证书时）+ .app + .dmg ───────────────────────────
+  # 未配置 APPLE_CERT_P12_BASE64 时跳过签名，产物为未签名 .app / .dmg，
+  # 用户首次打开需右键「打开」，详见 README 的发布者签名一节。
   macos:
     name: macOS
     needs: version
@@ -270,6 +272,9 @@ jobs:
       APP_VERSION: ${{ needs.version.outputs.app_version }}
       SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
       BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+      APP_NAME: 晏阳社区
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
+      HAS_NOTARY: ${{ secrets.APPLE_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -288,6 +293,43 @@ jobs:
             --build-name="$SEMVER_VERSION" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Import Developer ID certificate
+        if: env.HAS_APPLE_CERT == 'true'
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PW="$(openssl rand -hex 16)"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PW" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+      - name: Sign macOS app
+        if: env.HAS_APPLE_CERT == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          # 从内到外签名：先签嵌套的 framework/dylib，再签整个 .app。
+          # 不用 --deep —— Apple 已不推荐，它不会用正确的 entitlements 重新签嵌套项。
+          if [ -d "$APP/Contents/Frameworks" ]; then
+            find "$APP/Contents/Frameworks" -depth \
+              \( -name '*.framework' -o -name '*.dylib' \) \
+              -exec codesign --force --options runtime --timestamp \
+                --sign "$APPLE_SIGNING_IDENTITY" {} \;
+          fi
+          codesign --force --options runtime --timestamp \
+            --sign "$APPLE_SIGNING_IDENTITY" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
       - name: Collect artifacts
         run: |
           set -euo pipefail
@@ -301,6 +343,40 @@ jobs:
           mkdir -p dist
           ditto -c -k --keepParent "$APP" "dist/ycomm-macos-${APP_VERSION}.zip"
           ls -l dist
+      - name: Build DMG
+        run: |
+          set -euo pipefail
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)
+          STAGE="$RUNNER_TEMP/dmg"
+          rm -rf "$STAGE"; mkdir -p "$STAGE"
+          cp -R "$APP" "$STAGE/"
+          # 拖到「应用程序」即可安装
+          ln -s /Applications "$STAGE/Applications"
+          mkdir -p dist
+          hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" \
+            -ov -format UDZO "dist/ycomm-macos-${APP_VERSION}.dmg"
+          hdiutil verify "dist/ycomm-macos-${APP_VERSION}.dmg"
+          ls -l dist
+      - name: Notarize and staple DMG
+        if: env.HAS_APPLE_CERT == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DMG="dist/ycomm-macos-${APP_VERSION}.dmg"
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+      - name: Warn when unsigned
+        if: env.HAS_APPLE_CERT != 'true'
+        run: |
+          echo "::warning::未配置 Apple 签名证书（APPLE_CERT_P12_BASE64），macOS 产物未签名，用户首次打开需右键「打开」。"
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -318,6 +394,8 @@ jobs:
       APP_VERSION: ${{ needs.version.outputs.app_version }}
       SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
       BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+      APP_NAME: 晏阳社区
+      APP_PUBLISHER: 晏阳技术组
     steps:
       - uses: actions/checkout@v4
       - name: Install Linux desktop build dependencies
@@ -342,6 +420,39 @@ jobs:
             --build-name="$SEMVER_VERSION" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=YCOMM_VERSION="$APP_VERSION"
+      - name: Build .deb package
+        run: |
+          set -euo pipefail
+          BUNDLE="build/linux/x64/release/bundle"
+          PKG="build/deb/ycomm_${APP_VERSION}_amd64"
+          rm -rf build/deb
+          mkdir -p "$PKG/DEBIAN" "$PKG/opt/ycomm" "$PKG/usr/bin" \
+                   "$PKG/usr/share/applications" \
+                   "$PKG/usr/share/icons/hicolor/256x256/apps"
+
+          # 可执行文件、lib/、data/ 必须放在一起，所以整体装到 /opt/ycomm
+          cp -R "$BUNDLE/." "$PKG/opt/ycomm/"
+          ln -s /opt/ycomm/ycomm_client "$PKG/usr/bin/ycomm_client"
+          install -m 0644 tool/linux/ycomm.desktop "$PKG/usr/share/applications/ycomm.desktop"
+          install -m 0644 assets/app_icon.png "$PKG/usr/share/icons/hicolor/256x256/apps/ycomm.png"
+
+          SIZE_KB="$(du -sk "$PKG" | cut -f1)"
+          cat > "$PKG/DEBIAN/control" <<EOF
+          Package: ycomm
+          Version: ${APP_VERSION}
+          Architecture: amd64
+          Maintainer: ${APP_PUBLISHER} <noreply@yanyn.cn>
+          Installed-Size: ${SIZE_KB}
+          Section: net
+          Priority: optional
+          Homepage: https://community.yanyn.cn
+          Depends: libgtk-3-0 | libgtk-3-0t64, libwebkit2gtk-4.1-0
+          Description: ${APP_NAME}桌面客户端
+          EOF
+
+          mkdir -p dist
+          dpkg-deb --root-owner-group --build "$PKG" "dist/ycomm-linux-${APP_VERSION}.deb"
+          dpkg-deb --info "dist/ycomm-linux-${APP_VERSION}.deb"
       - name: Collect artifacts
         run: |
           set -euo pipefail
@@ -407,7 +518,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # ── 8. Windows ────────────────────────────────────────────────────────
+  # ── 8. Windows：签名（有证书时）+ .zip + 安装包 ───────────────────────
+  # 未配置 WINDOWS_CERT_PFX_BASE64 时跳过签名，用户运行安装包会看到
+  # SmartScreen「未知发布者」，详见 README 的发布者签名一节。
   windows:
     name: Windows
     needs: version
@@ -417,6 +530,9 @@ jobs:
       APP_VERSION: ${{ needs.version.outputs.app_version }}
       SEMVER_VERSION: ${{ needs.version.outputs.semver_version }}
       BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+      APP_NAME: 晏阳社区
+      APP_PUBLISHER: 晏阳技术组
+      HAS_WIN_CERT: ${{ secrets.WINDOWS_CERT_PFX_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -434,6 +550,29 @@ jobs:
             --build-name="$env:SEMVER_VERSION" `
             --build-number="$env:BUILD_NUMBER" `
             --dart-define=YCOMM_VERSION="$env:APP_VERSION"
+      - name: Sign application binaries
+        if: env.HAS_WIN_CERT == 'true'
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX_BASE64))
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe not found' }
+
+          $targets = Get-ChildItem -Path 'build\windows\x64\runner\Release' -Recurse -File |
+            Where-Object { $_.Extension -in '.exe', '.dll' }
+          foreach ($t in $targets) {
+            Write-Host "signing $($t.Name)"
+            & $signtool.FullName sign /fd sha256 /td sha256 /tr http://timestamp.digicert.com `
+              /f $pfx /p $env:WINDOWS_CERT_PASSWORD $t.FullName
+            if ($LASTEXITCODE -ne 0) { throw "sign failed: $($t.FullName)" }
+          }
+          Remove-Item $pfx -Force
       - name: Collect artifacts
         run: |
           $release = "build\windows\x64\runner\Release"
@@ -444,6 +583,46 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Compress-Archive -Path "$release\*" -DestinationPath "dist\ycomm-windows-$env:APP_VERSION.zip"
           Get-ChildItem dist | Format-Table Name, Length
+      - name: Build Windows installer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup --no-progress -y
+          $iscc = Get-ChildItem 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+                                  'C:\Program Files\Inno Setup 6\ISCC.exe' -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $iscc) { throw 'ISCC.exe not found' }
+
+          & $iscc.FullName `
+            "/DAppName=$env:APP_NAME" `
+            "/DAppVersion=$env:APP_VERSION" `
+            "/DAppPublisher=$env:APP_PUBLISHER" `
+            "/DSourceDir=$PWD\build\windows\x64\runner\Release" `
+            "/DOutputDir=$PWD\dist" `
+            "/DOutputBaseName=ycomm-windows-$env:APP_VERSION-setup" `
+            'tool\windows_installer.iss'
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+          Get-ChildItem dist | Format-Table Name, Length
+      - name: Sign installer
+        if: env.HAS_WIN_CERT == 'true'
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX_BASE64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          $setup = Get-ChildItem dist -Filter '*setup.exe' | Select-Object -First 1
+          & $signtool.FullName sign /fd sha256 /td sha256 /tr http://timestamp.digicert.com `
+            /f $pfx /p $env:WINDOWS_CERT_PASSWORD $setup.FullName
+          if ($LASTEXITCODE -ne 0) { throw "sign failed: $($setup.FullName)" }
+          & $signtool.FullName verify /pa /v $setup.FullName
+          Remove-Item $pfx -Force
+      - name: Warn when unsigned
+        if: env.HAS_WIN_CERT != 'true'
+        run: |
+          Write-Host "::warning::未配置代码签名证书（WINDOWS_CERT_PFX_BASE64），Windows 产物未签名，用户会看到 SmartScreen「未知发布者」。"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -460,6 +639,8 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.tag }}
       APP_VERSION: ${{ needs.version.outputs.app_version }}
+      SIGNED_WINDOWS: ${{ secrets.WINDOWS_CERT_PFX_BASE64 != '' }}
+      SIGNED_MACOS: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -520,18 +701,48 @@ jobs:
             echo "## YComm Flutter ${VERSION}"
             echo ""
             echo "版本号：\`${APP_VERSION}\`（yyyy.mm.dd.commits，与 YComm_WebSite 同格式）。"
+            echo "发布者：晏阳技术组"
             echo ""
-            echo "### 平台产物"
+            echo "### 安装包"
+            echo ""
+            echo "| 平台 | 文件 | 安装方式 |"
+            echo "| --- | --- | --- |"
+            echo "| Windows | \`ycomm-windows-${APP_VERSION}-setup.exe\` | 双击运行安装向导（按用户安装，不需要管理员权限） |"
+            echo "| macOS | \`ycomm-macos-${APP_VERSION}.dmg\` | 打开后把「晏阳社区」拖进「应用程序」 |"
+            echo "| Linux | \`ycomm-linux-${APP_VERSION}.deb\` | \`sudo apt install ./ycomm-linux-${APP_VERSION}.deb\` |"
+            echo ""
+            echo "### 免安装包"
             echo ""
             echo "| 平台 | 文件 | 说明 |"
             echo "| --- | --- | --- |"
-            echo "| Android | \`ycomm-android-${APP_VERSION}.apk\` | 签名 Release APK |"
+            echo "| Android | \`ycomm-android-${APP_VERSION}.apk\` | 已签名的 Release APK |"
             echo "| Android | \`ycomm-android-${APP_VERSION}.aab\` | Google Play 上传包 |"
             echo "| iOS | \`ycomm-ios-${APP_VERSION}-unsigned.xcarchive.zip\` | 未签名归档，需自行签名 |"
-            echo "| macOS | \`ycomm-macos-${APP_VERSION}.zip\` | 未签名 .app |"
-            echo "| Linux | \`ycomm-linux-${APP_VERSION}.tar.gz\` | 桌面 bundle，需 webkit2gtk-4.1 |"
-            echo "| Web | \`ycomm-web-${APP_VERSION}.tar.gz\` | 静态站点，解压即用 |"
-            echo "| Windows | \`ycomm-windows-${APP_VERSION}.zip\` | 需系统 WebView2 |"
+            echo "| macOS | \`ycomm-macos-${APP_VERSION}.zip\` | \`.app\`，解压即用 |"
+            echo "| Linux | \`ycomm-linux-${APP_VERSION}.tar.gz\` | 解压即用，需 webkit2gtk-4.1 |"
+            echo "| Web | \`ycomm-web-${APP_VERSION}.tar.gz\` | 静态站点，解压后用任意 Web 服务器托管 |"
+            echo "| Windows | \`ycomm-windows-${APP_VERSION}.zip\` | 解压即用，需系统 WebView2 |"
+            echo ""
+            echo "### 关于安全提示"
+            echo ""
+            echo "发布者签名为**按平台分别配置**，本次构建的状态："
+            echo ""
+            echo "| 平台 | 签名状态 | 用户会看到什么 |"
+            echo "| --- | --- | --- |"
+            if [ "$SIGNED_WINDOWS" = "true" ]; then
+              echo "| Windows | ✅ 已用代码签名证书签名 | 安装包属性里能看到发布者「晏阳技术组」 |"
+            else
+              echo "| Windows | ⚠️ 未签名 | SmartScreen 提示「未知发布者」，需点「更多信息」→「仍要运行」 |"
+            fi
+            if [ "$SIGNED_MACOS" = "true" ]; then
+              echo "| macOS | ✅ 已用 Developer ID 签名并公证 | 可直接打开 |"
+            else
+              echo "| macOS | ⚠️ 未签名 | Gatekeeper 提示「无法验证开发者」，需右键「打开」或到「系统设置 → 隐私与安全性」放行 |"
+            fi
+            echo "| Linux | 不适用 | \`.deb\` 没有代码签名机制 |"
+            echo ""
+            echo "安装包内的发布者信息（程序名、发布者、版本、版权）已经写入 Windows 版本资源、macOS \`Info.plist\` 与 \`.deb\` 的 control 文件；"
+            echo "但**弹出安全提示的是操作系统的签名校验，只有配置证书才能真正消除提示**。证书配置方法见仓库 README。"
             echo ""
             echo "校验：\`sha256sum -c SHA256SUMS.txt\`"
           } > release-notes.md

@@ -87,13 +87,13 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904e4"
+        BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "com.yanyang" "\0"
+            VALUE "CompanyName", "晏阳技术组" "\0"
             VALUE "FileDescription", "晏阳社区" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "ycomm_client" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.yanyang. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 晏阳技术组. All rights reserved." "\0"
             VALUE "OriginalFilename", "ycomm_client.exe" "\0"
             VALUE "ProductName", "晏阳社区" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
@@ -101,7 +101,7 @@ BEGIN
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x409, 1252
+        VALUE "Translation", 0x409, 1200
     END
 END
 

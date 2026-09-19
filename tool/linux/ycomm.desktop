@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=晏阳社区
+Name[zh_CN]=晏阳社区
+GenericName=社区客户端
+Comment=晏阳社区桌面客户端
+Comment[zh_CN]=晏阳社区桌面客户端
+Exec=ycomm_client %U
+Icon=ycomm
+Terminal=false
+Categories=Network;InstantMessaging;
+Keywords=晏阳;社区;YComm;Yanyang;
+StartupNotify=true
+# 与 linux/runner/my_application.cc 里的 g_set_prgname(APPLICATION_ID) 一致，
+# 否则任务栏会把窗口和图标分成两个条目。
+StartupWMClass=com.yanyang.ycomm_client

@@ -27,6 +27,24 @@ enum ThemeModePreference {
       values.firstWhere((e) => e.id == id, orElse: () => auto);
 }
 
+/// 中文字体回退链。
+///
+/// 三个桌面平台默认都不保证装有 Noto CJK：Linux 常见 Noto，Windows 是微软雅黑，
+/// macOS 是苹方。回退链里少了某个平台的名字，该平台的中文就可能渲染成豆腐块或
+/// 落到不带中文字形的默认字体上。
+const _cjkFallback = <String>[
+  'Noto Sans CJK SC', // Linux
+  'Noto Sans SC',
+  'Source Han Sans SC',
+  'WenQuanYi Micro Hei',
+  'Microsoft YaHei UI', // Windows
+  'Microsoft YaHei',
+  'SimHei',
+  'PingFang SC', // macOS
+  'Hiragino Sans GB',
+  'Heiti SC',
+];
+
 ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final scheme =
@@ -47,7 +65,7 @@ ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
   final base = ThemeData(
     useMaterial3: true,
     fontFamily: 'Roboto',
-    fontFamilyFallback: const ['Noto Sans CJK SC', 'Noto Sans SC'],
+    fontFamilyFallback: _cjkFallback,
     colorScheme: scheme,
     brightness: brightness,
   );
@@ -97,7 +115,9 @@ ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
             color: scheme.onSurfaceVariant,
           ),
         )
-        .apply(fontFamily: 'Roboto'),
+        // copyWith 里新建的 TextStyle 不带 fallback，这里统一补上，
+        // 否则被覆盖的那几个文字样式在中文字体缺失时会退化。
+        .apply(fontFamily: 'Roboto', fontFamilyFallback: _cjkFallback),
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,

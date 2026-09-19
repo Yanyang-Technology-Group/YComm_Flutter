@@ -11,4 +11,4 @@ PRODUCT_NAME = ycomm_client
 PRODUCT_BUNDLE_IDENTIFIER = com.yanyang.ycommClient
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.yanyang. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 晏阳技术组. All rights reserved.

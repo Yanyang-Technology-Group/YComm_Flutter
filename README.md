@@ -107,17 +107,62 @@ Apple 只接受 1–3 段整数，Windows `VERSIONINFO` 只接受四段 16 位�
 
 Release 附件：
 
-| 平台 | 产物 |
-| --- | --- |
-| Android | `ycomm-android-<版本>.apk`（签名）、`ycomm-android-<版本>.aab` |
-| iOS | `ycomm-ios-<版本>-unsigned.xcarchive.zip` |
-| macOS | `ycomm-macos-<版本>.zip` |
-| Linux | `ycomm-linux-<版本>.tar.gz` |
-| Web | `ycomm-web-<版本>.tar.gz` |
-| Windows | `ycomm-windows-<版本>.zip` |
-| 校验 | `SHA256SUMS.txt` |
+| 平台 | 安装包 | 免安装包 |
+| --- | --- | --- |
+| Windows | `ycomm-windows-<版本>-setup.exe` | `ycomm-windows-<版本>.zip` |
+| macOS | `ycomm-macos-<版本>.dmg` | `ycomm-macos-<版本>.zip` |
+| Linux | `ycomm-linux-<版本>.deb` | `ycomm-linux-<版本>.tar.gz` |
+| Android | — | `ycomm-android-<版本>.apk`（已签名）、`ycomm-android-<版本>.aab` |
+| iOS | — | `ycomm-ios-<版本>-unsigned.xcarchive.zip` |
+| Web | — | `ycomm-web-<版本>.tar.gz` |
+| 校验 | `SHA256SUMS.txt` | |
 
-包名：`cn.yanyn.community`。iOS 与 macOS 产物未签名（仓库未配置 Apple 证书），iOS 归档需导入 Xcode 自行签名后分发。Linux bundle 需要 `webkit2gtk-4.1`，Windows 需要系统 WebView2。
+包名：`cn.yanyn.community`。Linux 需要 `webkit2gtk-4.1`，Windows 需要系统 WebView2。macOS 的 `.dmg` 里带一个「应用程序」快捷方式，拖进去即可安装；Windows 安装包按用户安装（不需要管理员权限），因此安装过程不会弹 UAC。
+
+## 发布者签名
+
+三个桌面平台的产物都写入了发布者信息（Windows 版本资源、macOS `Info.plist`、`.deb` 的 control 文件）：
+
+- 程序名：晏阳社区
+- 发布者：晏阳技术组
+- 版本：CI 注入的 `yyyy.mm.dd.commits`
+
+**但这些元数据不会消除操作系统的安全提示。** Windows 的 UAC / SmartScreen 和 macOS 的 Gatekeeper 校验的是**代码签名证书**：没有证书时 Windows 一律显示「未知发布者」，macOS 一律提示「无法验证开发者」。只有配上证书才能真正去掉提示。
+
+### 需要的证书
+
+| 平台 | 证书 | 获取方式 | 费用 |
+| --- | --- | --- | --- |
+| Windows | 代码签名证书（OV/EV） | 向 CA（DigiCert、Sectigo、SSL.com 等）购买；2023 年后新签发的证书多为云签名或硬件令牌形式 | 约 200–500 美元/年；也可考虑 Azure Trusted Signing（约 10 美元/月，需企业资质） |
+| macOS | Developer ID Application | 加入 Apple Developer Program 后在 Certificates 里创建并导出 `.p12` | 99 美元/年 |
+
+证书 `Subject` 里的 `O=` 决定用户看到的发布者名字，申请时填「晏阳技术组」（或对应的法定主体名）。
+
+### 配置方式
+
+拿到证书后在仓库 Settings → Secrets and variables → Actions 添加对应项，工作流会自动开始签名。**没配置时不会失败**，只是跳过签名并打一条 warning，Release 说明里也会标注未签名。
+
+Windows：
+
+- `WINDOWS_CERT_PFX_BASE64` — `.pfx` 的 Base64：`[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx"))`
+- `WINDOWS_CERT_PASSWORD` — `.pfx` 密码
+
+macOS：
+
+- `APPLE_CERT_P12_BASE64` — Developer ID Application 证书 `.p12` 的 Base64
+- `APPLE_CERT_PASSWORD` — `.p12` 密码
+- `APPLE_SIGNING_IDENTITY` — 形如 `Developer ID Application: 晏阳技术组 (TEAMID)`
+- `APPLE_ID` — Apple 账号邮箱
+- `APPLE_TEAM_ID` — 团队 ID
+- `APPLE_APP_PASSWORD` — App 专用密码
+
+macOS 只配证书不配公证账号时，`.app` 会被签名但不会公证，Gatekeeper 仍可能提示；`codesign` → `notarytool` → `stapler` 三步都跑完才是完整链路。
+
+### 未签名时用户怎么装
+
+- **Windows**：安装包按用户安装，不需要管理员权限，安装过程**不弹 UAC**。从浏览器下载后首次运行会有 SmartScreen 提示，点「更多信息」→「仍要运行」。
+- **macOS**：右键点图标选「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」。
+- **Linux**：`.deb` 没有代码签名机制，不涉及。
 
 Android Release 始终使用 GitHub Secrets 中保存的固定密钥，缺少任一项时构建失败，不回退到调试签名：
 
