@@ -32,3 +32,21 @@ String get appVersionLabel {
       ? kFlutterBuildName
       : '$kFlutterBuildName+$kFlutterBuildNumber';
 }
+
+/// 把 `yyyy.mm.dd.commits` 解析成可逐段比较的整数数组；格式不符时返回 null。
+List<int>? parseVersionParts(String raw) {
+  final match = RegExp(
+    r'^(\d{4})\.(\d{1,2})\.(\d{1,2})\.(\d+)$',
+  ).firstMatch(raw.trim());
+  if (match == null) {
+    return null;
+  }
+  return [for (var i = 1; i <= 4; i++) int.parse(match.group(i)!)];
+}
+
+/// 当前构建用于比较更新的版本号。
+///
+/// 只有拿到 CI 注入的 `YCOMM_VERSION` 才有意义；开发构建返回 null，
+/// 调用方据此跳过比较（不能拿 `0.0.0+0` 去和线上版本比大小）。
+List<int>? get appVersionParts =>
+    kCanonicalVersion.isEmpty ? null : parseVersionParts(kCanonicalVersion);

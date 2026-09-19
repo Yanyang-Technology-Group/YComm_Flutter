@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 应用内下载新版 APK 后交给系统安装器；不走 Google Play 分发时无额外影响，
+         若日后上架需要按 Play 政策说明该权限用途。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application
         android:label="晏阳社区"
         android:networkSecurityConfig="@xml/network_security_config"

@@ -12,6 +12,7 @@ import 'features/downloads/downloads_page.dart';
 import 'features/forum/forum_page.dart';
 import 'features/notifications/notifications_page.dart';
 import 'features/profile/profile_page.dart';
+import 'features/update/update_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,6 +98,11 @@ class _AppShellState extends ConsumerState<AppShell>
     ref.listenManual(sessionProvider, (previous, next) {
       if (previous?.value?['id'] != next.value?['id']) sync();
     }, fireImmediately: true);
+    // 启动后自动检查一次更新；6 小时内重复启动不会再打接口，
+    // 发现新版本且用户没点过「不再提醒」才弹窗。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) autoCheckForUpdates(context, ref);
+    });
   }
 
   Future<void> sync() async {
@@ -122,6 +128,7 @@ class _AppShellState extends ConsumerState<AppShell>
     if (active) {
       ref.read(sessionProvider.notifier).refresh();
       ref.read(notificationsProvider.notifier).refresh();
+      autoCheckForUpdates(context, ref);
     }
     sync();
   }
