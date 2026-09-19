@@ -35,6 +35,11 @@
 #ifndef OutputBaseName
   #define OutputBaseName "ycomm-windows-setup"
 #endif
+; Icon shown on the installer .exe itself and in Add/Remove Programs.
+; Without this Inno Setup uses its own default icon.
+#ifndef IconFile
+  #define IconFile "..\windows\runner\resources\app_icon.ico"
+#endif
 
 [Setup]
 ; AppId must never change, otherwise upgrades register as a different product
@@ -65,6 +70,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline
 OutputDir={#OutputDir}
 OutputBaseFilename={#OutputBaseName}
+SetupIconFile={#IconFile}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

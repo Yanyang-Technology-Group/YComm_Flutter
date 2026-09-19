@@ -598,6 +598,7 @@ jobs:
             "/DAppPublisher=$env:APP_PUBLISHER" `
             "/DSourceDir=$PWD\build\windows\x64\runner\Release" `
             "/DOutputDir=$PWD\dist" `
+            "/DIconFile=$PWD\windows\runner\resources\app_icon.ico" `
             "/DOutputBaseName=ycomm-windows-$env:APP_VERSION-setup" `
             'tool\windows_installer.iss'
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
