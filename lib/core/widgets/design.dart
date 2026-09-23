@@ -10,6 +10,28 @@ import 'markdown_text.dart';
 export 'markdown_text.dart';
 
 const siteOrigin = 'https://community.yanyn.cn';
+
+/// 把服务端返回的图片/资源路径解析成可直接请求的绝对地址。
+///
+/// 服务端经常返回 `/uploads/images/xxx.png` 这种站内相对路径，直接丢给
+/// `Image.network` / `url_launcher` 会解析失败（图片就加载不出来）。
+/// 统一在这里补上站点前缀：
+///   /uploads/x.png      -> https://community.yanyn.cn/uploads/x.png
+///   uploads/x.png       -> https://community.yanyn.cn/uploads/x.png
+///   //cdn.x/x.png       -> https://cdn.x/x.png
+///   https://x/x.png     -> 原样返回
+/// 空串、空白和无法解析的输入返回 null，调用方据此走占位/忽略。
+Uri? resolveSiteUrl(String? raw) {
+  final text = raw?.trim() ?? '';
+  if (text.isEmpty) {
+    return null;
+  }
+  final parsed = Uri.tryParse(text);
+  if (parsed == null) {
+    return null;
+  }
+  return Uri.parse('$siteOrigin/').resolveUri(parsed);
+}
 Future<T?> openPage<T>(BuildContext context, Widget page) =>
     Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => page));
 void notice(BuildContext context, Object message) =>
@@ -231,10 +253,7 @@ class PersonAvatar extends StatelessWidget {
       ),
     );
     final raw = url?.trim() ?? '';
-    final parsed = Uri.tryParse(raw);
-    final uri = raw.isEmpty || parsed == null
-        ? null
-        : Uri.parse('$siteOrigin/').resolveUri(parsed);
+    final uri = resolveSiteUrl(raw);
     return ClipRRect(
       borderRadius: BorderRadius.circular(size * .36),
       child: Container(
@@ -303,8 +322,9 @@ class MarkdownContent extends StatelessWidget {
       }
     },
     imageBuilder: (uri, title, alt) {
-      final resolved = Uri.parse(siteOrigin).resolveUri(uri);
-      if (!['https', 'http'].contains(resolved.scheme)) {
+      final resolved = resolveSiteUrl(uri.toString());
+      if (resolved == null ||
+          !['https', 'http'].contains(resolved.scheme)) {
         return const SizedBox.shrink();
       }
       return ClipRRect(

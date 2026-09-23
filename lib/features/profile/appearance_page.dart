@@ -4,13 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/design.dart';
+import '../../core/window/desktop_settings.dart';
+import '../../core/window/desktop_shell.dart';
 
 class AppearancePage extends ConsumerWidget {
   const AppearancePage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(themeControllerProvider);
+    final desktop = ref.watch(desktopSettingsProvider);
     final control = ref.read(themeControllerProvider.notifier);
+    final desktopControl = ref.read(desktopSettingsProvider.notifier);
     final scheme = Theme.of(context).colorScheme;
     Widget section(String text) => Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
@@ -79,6 +83,42 @@ class AppearancePage extends ConsumerWidget {
                   ),
                 ),
               ),
+              // 桌面端才有托盘与系统通知，手机端不显示这一段。
+              if (isDesktopShell) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  child: Divider(),
+                ),
+                section('桌面'),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
+                  secondary: Icon(
+                    Icons.desktop_windows_outlined,
+                    color: scheme.primary,
+                  ),
+                  title: const Text('系统托盘'),
+                  subtitle: const Text('关闭窗口时收进托盘；右键托盘图标可退出'),
+                  value: desktop.tray,
+                  onChanged: desktopControl.setTray,
+                ),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
+                  secondary: Icon(
+                    Icons.notifications_active_outlined,
+                    color: scheme.primary,
+                  ),
+                  title: const Text('右下角系统通知'),
+                  subtitle: const Text('收到新消息时在屏幕右下角弹出提示'),
+                  value: desktop.notifications,
+                  onChanged: desktopControl.setNotifications,
+                ),
+              ],
             ],
           ),
         ),
