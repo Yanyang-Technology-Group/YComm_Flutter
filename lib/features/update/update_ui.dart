@@ -52,12 +52,12 @@ Future<void> _showResult(
         title: '已是最新版本',
         message: '当前版本 $appVersionLabel。',
       );
-    case UpdateStatus.unsupported:
+    case UpdateStatus.unavailable:
       final info = state.info;
       await _simple(
         context,
         title: '无法自动检查',
-        message: state.message ?? '当前平台不支持自动更新。',
+        message: state.message ?? '暂时拿不到更新信息，请到社区下载区查看。',
         secondary: info == null
             ? null
             : () => _download(context, ref, info),
