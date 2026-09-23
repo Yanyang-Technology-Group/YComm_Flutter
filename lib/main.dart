@@ -8,6 +8,7 @@ import 'core/network/realtime_service.dart';
 import 'core/state/session.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/window/title_bar.dart';
 import 'features/downloads/downloads_page.dart';
 import 'features/forum/forum_page.dart';
 import 'features/notifications/notifications_page.dart';
@@ -17,6 +18,8 @@ import 'features/update/update_ui.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.initialize();
+  // 桌面端：让系统标题栏的明暗能跟随应用主题。
+  await initializeDesktopWindow();
   runApp(const ProviderScope(child: YCommApp()));
 }
 
@@ -73,6 +76,9 @@ class _AppShellState extends ConsumerState<AppShell>
   int index = 0, syncGeneration = 0;
   final visited = <int>{0};
   bool active = true;
+
+  /// 上次同步给系统标题栏的明暗，避免每帧都打平台通道。
+  Brightness? titleBarBrightness;
   late final AnimationController animation;
   late final RealtimeService realtime;
   static const pages = [
@@ -153,6 +159,13 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    // 桌面端的系统标题栏跟随应用明暗：深色主题配浅色标题栏会很割裂。
+    // 这里带值比较，只在明暗真的变化时调用一次平台通道。
+    final brightness = Theme.of(context).brightness;
+    if (titleBarBrightness != brightness) {
+      titleBarBrightness = brightness;
+      syncTitleBarBrightness(brightness);
+    }
     final unread = (ref.watch(notificationsProvider).value ?? []).fold<int>(
       0,
       (sum, n) => sum + ((n['unreadCount'] as num?)?.toInt() ?? 0),
