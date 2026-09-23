@@ -87,11 +87,44 @@ void main() {
     });
   });
 
-  group('有强调色的主题仍然是有彩度的', () {
-    test('中国红能得到偏红的方案', () {
-      final scheme = buildTheme(ThemeColour.red, Brightness.light).colorScheme;
-      expect(chroma(scheme.primary), greaterThan(20));
-      expect(scheme.primary.b, lessThan(scheme.primary.r));
+  group('中国红必须是网站那支正红，不能像粉色', () {
+    test('强调色直接用网站的三档取值', () {
+      for (final brightness in Brightness.values) {
+        final scheme = buildTheme(ThemeColour.red, brightness).colorScheme;
+        final dark = brightness == Brightness.dark;
+        expect(scheme.primary, dark ? const Color(0xFFFF3D3D) : const Color(0xFFFF0000));
+        expect(
+          scheme.primaryContainer,
+          dark ? const Color(0xFF341111) : const Color(0xFFFFE9E9),
+        );
+        expect(
+          scheme.onPrimaryContainer,
+          dark ? const Color(0xFFFF7070) : const Color(0xFFCC0000),
+        );
+      }
+    });
+
+    test('回归：与猛男粉的主色必须能明显区分', () {
+      for (final brightness in Brightness.values) {
+        final red = buildTheme(ThemeColour.red, brightness).colorScheme.primary;
+        final pink = buildTheme(ThemeColour.pink, brightness).colorScheme.primary;
+        final distance =
+            (red.r - pink.r).abs() + (red.g - pink.g).abs() + (red.b - pink.b).abs();
+        expect(distance, greaterThan(0.15),
+            reason: '两者太接近，用户分不清（红 $red / 粉 $pink）');
+      }
+    });
+
+    test('回归：M3 直接生成的中国红确实会撞上粉色（所以要覆盖）', () {
+      final naive = ColorScheme.fromSeed(
+        seedColor: ThemeColour.red.seed,
+        brightness: Brightness.light,
+      );
+      final pink = buildTheme(ThemeColour.pink, Brightness.light).colorScheme;
+      final distance = (naive.primary.r - pink.primary.r).abs() +
+          (naive.primary.g - pink.primary.g).abs() +
+          (naive.primary.b - pink.primary.b).abs();
+      expect(distance, lessThan(0.15), reason: '这正是当初看着像粉色的原因');
     });
   });
 }

@@ -1,21 +1,64 @@
 import 'package:flutter/material.dart';
 
+/// 网站给每个主题定义了 accent / accent-strong / accent-soft 三档（浅色深色各一套）。
+///
+/// M3 的 fromSeed 会把种子去饱和：#ff0000 被生成成 #904b40、容器是 #ffdad4，
+/// 与猛男粉生成的 #8e4955 / #ffd9dd 几乎一样，所以中国红看着像粉色。
+/// 需要精确还原的主题直接用网站这三档取值。
+class ThemeAccent {
+  const ThemeAccent({
+    required this.light,
+    required this.lightStrong,
+    required this.lightSoft,
+    required this.dark,
+    required this.darkStrong,
+    required this.darkSoft,
+  });
+
+  final Color light;
+  final Color lightStrong;
+  final Color lightSoft;
+  final Color dark;
+  final Color darkStrong;
+  final Color darkSoft;
+
+  Color of(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
+  Color strongOf(Brightness brightness) =>
+      brightness == Brightness.dark ? darkStrong : lightStrong;
+  Color softOf(Brightness brightness) =>
+      brightness == Brightness.dark ? darkSoft : lightSoft;
+}
+
+/// 中国红：取自 YComm_WebSite@7701763 的 --accent / --accent-strong / --accent-soft。
+const _chinaRed = ThemeAccent(
+  light: Color(0xFFFF0000),
+  lightStrong: Color(0xFFCC0000),
+  lightSoft: Color(0xFFFFE9E9),
+  dark: Color(0xFFFF3D3D),
+  darkStrong: Color(0xFFFF7070),
+  darkSoft: Color(0xFF341111),
+);
+
 /// 主题色。
 ///
 /// 顺序与取值都跟网站（YComm_WebSite 的 THEME_FAMILIES / globals.css）对齐：
 /// seed 就是网站浅色模式下的 --accent。
 enum ThemeColour {
   azure('azure', '晏阳蓝', Color(0xFF5D94E8)),
-  red('red', '中国红', Color(0xFFFF0000)),
+  red('red', '中国红', Color(0xFFFF0000), accent: _chinaRed),
   pink('pink', '猛男粉', Color(0xFFF0899A)),
   mint('mint', '纳西妲绿', Color(0xFF62B35C)),
   orange('orange', '活力橙', Color(0xFFEC8A2E)),
   none('none', '无强调色', Color(0xFF7D848D));
 
-  const ThemeColour(this.id, this.label, this.seed);
+  const ThemeColour(this.id, this.label, this.seed, {this.accent});
   final String id;
   final String label;
   final Color seed;
+
+  /// 非空时用网站的三档取值覆盖 M3 生成的强调色。
+  final ThemeAccent? accent;
 
   /// 网站早期把「无强调色」存成 slate，这里保持兼容。
   static ThemeColour fromId(String? id) => id == 'slate'
@@ -96,7 +139,8 @@ ColorScheme _neutralScheme(Brightness brightness) {
 
 ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
   final dark = brightness == Brightness.dark;
-  final scheme = colour == ThemeColour.none
+  final fromWebsite = colour.accent;
+  var scheme = colour == ThemeColour.none
       ? _neutralScheme(brightness)
       : ColorScheme.fromSeed(
           seedColor: colour.seed,
@@ -112,6 +156,19 @@ ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
               ? const Color(0xFF343B45)
               : const Color(0xFFE1E6ED),
         );
+
+  // 配了网站三档取值的主题，强调色直接用网站的值，不用 M3 去饱和后的结果。
+  if (fromWebsite != null) {
+    final accent = fromWebsite.of(brightness);
+    scheme = scheme.copyWith(
+      primary: accent,
+      // 正红配白字对比度约 4:1；深色下 #ff3d3d 偏亮，用深色字更清楚。
+      onPrimary: dark ? const Color(0xFF2B0000) : Colors.white,
+      primaryContainer: fromWebsite.softOf(brightness),
+      onPrimaryContainer: fromWebsite.strongOf(brightness),
+      surfaceTint: accent,
+    );
+  }
   final base = ThemeData(
     useMaterial3: true,
     fontFamily: 'Roboto',
