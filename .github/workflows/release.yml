@@ -211,10 +211,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # ── 4. iOS：未签名 xcarchive ──────────────────────────────────────────
-  # 未配置 Apple 证书，产物为未签名归档，导入 Xcode 后自行签名分发。
+  # ── 4. iOS：未签名 IPA ────────────────────────────────────────────────
+  # 构建未签名真机 .app，再按 Payload/*.app 结构打包；安装前需自行签名。
   ios:
-    name: iOS (unsigned xcarchive)
+    name: iOS (unsigned ipa)
     needs: version
     runs-on: macos-latest
     timeout-minutes: 60
@@ -233,26 +233,30 @@ jobs:
         run: dart tool/set_version.dart "${SEMVER_VERSION}+${BUILD_NUMBER}"
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
-      - name: Build unsigned archive
+      - name: Build unsigned iOS app
         run: |
           set -euo pipefail
-          flutter build ipa --release --no-codesign \
+          flutter build ios --release --no-codesign \
             --build-name="$SEMVER_VERSION" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=YCOMM_VERSION="$APP_VERSION"
-      - name: Collect artifacts
+      - name: Package unsigned IPA
         run: |
           set -euo pipefail
-          ARCHIVE=$(find build/ios/archive -maxdepth 1 -name '*.xcarchive' -print -quit)
-          if [ -z "$ARCHIVE" ]; then
-            echo "::error::没有找到 .xcarchive，构建产物路径可能已变化"
-            find build/ios -maxdepth 3 -type d
+          APP="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP" ]; then
+            echo "::error::没有找到未签名真机应用：$APP"
             exit 1
           fi
-          echo "Archive: $ARCHIVE"
-          mkdir -p dist
-          ditto -c -k --keepParent "$ARCHIVE" "dist/ycomm-ios-${APP_VERSION}-unsigned.xcarchive.zip"
-          ls -l dist
+          PACKAGE_DIR="$(mktemp -d)"
+          trap 'rm -rf "$PACKAGE_DIR"' EXIT
+          mkdir -p "$PACKAGE_DIR/Payload" dist
+          cp -a "$APP" "$PACKAGE_DIR/Payload/Runner.app"
+          IPA="$PWD/dist/ycomm-ios-${APP_VERSION}-unsigned.ipa"
+          # 保留包内符号链接；从 Payload 的父目录打包，避免额外目录层级。
+          (cd "$PACKAGE_DIR" && zip -q -r -y "$IPA" Payload)
+          unzip -t "$IPA"
+          ls -l "$IPA"
       - uses: actions/upload-artifact@v4
         with:
           name: ios
@@ -719,7 +723,7 @@ jobs:
             echo "| --- | --- | --- |"
             echo "| Android | \`ycomm-android-${APP_VERSION}.apk\` | 已签名的 Release APK |"
             echo "| Android | \`ycomm-android-${APP_VERSION}.aab\` | Google Play 上传包 |"
-            echo "| iOS | \`ycomm-ios-${APP_VERSION}-unsigned.xcarchive.zip\` | 未签名归档，需自行签名 |"
+            echo "| iOS | \`ycomm-ios-${APP_VERSION}-unsigned.ipa\` | 未签名 IPA，需自行签名 |"
             echo "| macOS | \`ycomm-macos-${APP_VERSION}.zip\` | \`.app\`，解压即用 |"
             echo "| Linux | \`ycomm-linux-${APP_VERSION}.tar.gz\` | 解压即用，需 webkit2gtk-4.1 |"
             echo "| Web | \`ycomm-web-${APP_VERSION}.tar.gz\` | 静态站点，解压后用任意 Web 服务器托管 |"
