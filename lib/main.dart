@@ -68,6 +68,11 @@ class _YCommAppState extends ConsumerState<YCommApp> {
               .disableAnimations
           ? Duration.zero
           : const Duration(milliseconds: 250),
+      // 在 Navigator 外为标题栏保留独立空间，所有路由都显示在标题栏下方。
+      // 外框的 Overlay 为标题栏按钮提供 Tooltip 所需的祖先。
+      builder: (context, child) => isDesktopShell
+          ? DesktopWindowFrame(child: child)
+          : child ?? const SizedBox.shrink(),
       home: const AppShell(),
     );
   }
@@ -351,15 +356,9 @@ class _AppShellState extends ConsumerState<AppShell>
                     ),
                   ),
           );
-          // 桌面端：系统标题栏已隐藏，把自绘标题栏铺在最上面。
-          return isDesktopShell
-              ? Column(
-                  children: [
-                    const DesktopTitleBar(),
-                    Expanded(child: shell),
-                  ],
-                )
-              : shell;
+          // 桌面端：系统标题栏已隐藏，自绘标题栏由 MaterialApp.builder 铺在
+          // Navigator 之上（见 YCommApp.build），这里只输出 shell 本体。
+          return shell;
         },
       ),
     );
