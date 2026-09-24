@@ -18,7 +18,7 @@ class AboutPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(updateControllerProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('关于晏阳')),
+      appBar: AppBar(title: const Text('关于晏阳社区')),
       body: SafeArea(
         child: PageWidth(
           child: ListView(

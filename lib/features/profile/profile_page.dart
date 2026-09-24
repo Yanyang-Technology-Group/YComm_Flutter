@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/community_api.dart';
 import '../../core/state/session.dart';
-import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/design.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../auth/auth_gate.dart';
@@ -14,16 +13,14 @@ import '../downloads/resource_page.dart';
 import '../admin/admin_access.dart';
 import '../admin/admin_page.dart';
 import '../forum/my_posts_page.dart';
-import 'about_page.dart';
-import 'appearance_page.dart';
+import 'settings_page.dart';
 import 'user_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(sessionProvider),
-        theme = ref.watch(themeControllerProvider);
+    final session = ref.watch(sessionProvider);
     final user = session.value;
     return SafeArea(
       bottom: false,
@@ -173,20 +170,10 @@ class ProfilePage extends ConsumerWidget {
             SettingsGroup(
               children: [
                 SettingsRow(
-                  icon: Icons.palette_outlined,
-                  title: '外观与主题',
-                  subtitle:
-                      '${theme.colour.label} · ${switch (theme.mode.id) {
-                        'dark' => '深色模式',
-                        'light' => '浅色模式',
-                        _ => '跟随系统',
-                      }}',
-                  onTap: () => openPage(context, const AppearancePage()),
-                ),
-                SettingsRow(
-                  icon: Icons.info_outline_rounded,
-                  title: '关于晏阳',
-                  onTap: () => openPage(context, const AboutPage()),
+                  icon: Icons.settings_outlined,
+                  title: '设置',
+                  subtitle: '外观、开发者工具与关于',
+                  onTap: () => openPage(context, const SettingsPage()),
                 ),
               ],
             ),

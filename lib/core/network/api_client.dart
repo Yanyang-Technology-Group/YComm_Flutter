@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
+import 'api_debug.dart';
 import 'api_result.dart';
 
 import 'package:path_provider/path_provider.dart';
@@ -70,6 +73,64 @@ class ApiClient {
       _request('PATCH', path, data: data);
 
   Future<ApiResult<dynamic>> delete(String path) => _request('DELETE', path);
+
+  /// API 浏览器的调试请求。
+  ///
+  /// 与 [_request] 不同：不解析成功/失败信封，把原始状态码、响应体和耗时原样
+  /// 返回给界面展示；HTTP 错误也照样返回，由调用方决定怎么显示。
+  ///
+  /// [method] 之外的取值会被当成 GET；GET 的 [data] 进 query，其余进 body。
+  Future<ApiDebugResponse> runDebugRequest({
+    required String method,
+    required String route,
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? query,
+  }) async {
+    final verb = switch (method.toUpperCase()) {
+      'POST' => 'POST',
+      'PATCH' => 'PATCH',
+      'DELETE' => 'DELETE',
+      _ => 'GET',
+    };
+    final cleanRoute = route.trim();
+    final cleanQuery = <String, dynamic>{
+      for (final entry in (query ?? const {}).entries)
+        if (entry.value != null && '${entry.value}'.trim().isNotEmpty)
+          entry.key: '${entry.value}'.trim(),
+    };
+    final cleanData = <String, dynamic>{
+      for (final entry in (data ?? const {}).entries)
+        if (entry.value != null && '${entry.value}'.trim().isNotEmpty)
+          entry.key: '${entry.value}'.trim(),
+    };
+    final timer = Stopwatch()..start();
+    final response = await dio.request<dynamic>(
+      cleanRoute,
+      data: verb == 'GET' ? null : cleanData,
+      queryParameters: verb == 'GET'
+          ? {...cleanQuery, ...cleanData}
+          : cleanQuery,
+      options: Options(method: verb, responseType: ResponseType.plain),
+    );
+    timer.stop();
+    final body = response.data is String
+        ? response.data as String
+        : (response.data == null ? '' : jsonEncode(response.data));
+    Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } catch (_) {
+      /* 非 JSON 响应直接展示原文。 */
+    }
+    return ApiDebugResponse(
+      method: verb,
+      route: cleanRoute,
+      statusCode: response.statusCode ?? 0,
+      elapsedMs: timer.elapsedMilliseconds,
+      body: body,
+      decoded: decoded,
+    );
+  }
 
   Future<ApiResult<dynamic>> _request(
     String method,
