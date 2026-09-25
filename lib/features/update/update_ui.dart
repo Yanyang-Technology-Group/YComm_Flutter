@@ -14,6 +14,7 @@ import '../../core/network/community_api.dart';
 import '../../core/update/update_controller.dart';
 import '../../core/update/update_service.dart';
 import '../../core/widgets/design.dart';
+import '../../core/window/desktop_shell.dart';
 
 /// 「关于」页的手动检查更新。
 Future<void> checkForUpdates(BuildContext context, WidgetRef ref) async {
@@ -198,6 +199,20 @@ Future<void> _download(
     );
     return;
   }
+  // 优先静默安装：不弹安装向导。
+  if (_supportsSilentInstall(result.path!)) {
+    // 安装器要替换文件就得让本应用退出。先摘掉托盘、放开关闭请求，
+    // 否则我们自己的「关窗收进托盘」会让安装器关不掉应用，文件替换不了。
+    // 托盘设置本身不动，装完重启后照旧生效。
+    await disableTray();
+    await preventWindowClose(false);
+    if (await _runInstallerSilently(result.path!)) {
+      if (context.mounted) {
+        notice(context, '正在后台安装，应用会自动重启');
+      }
+      return;
+    }
+  }
   final opened = await OpenFilex.open(result.path!);
   if (opened.type == ResultType.done || !context.mounted) {
     return;
@@ -216,6 +231,52 @@ Future<void> _download(
 const String _browserUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+/// 这个安装包能不能静默安装。
+///
+/// 只有 Windows 的 Inno Setup 包（.exe）和 MSI 支持无人值守；
+/// .deb 要 sudo、.apk 走系统安装器、.dmg 要用户拖进「应用程序」，
+/// 这些都没法静默，只能交给系统。
+bool _supportsSilentInstall(String path) {
+  if (!Platform.isWindows) {
+    return false;
+  }
+  final lower = path.toLowerCase();
+  return lower.endsWith('.exe') || lower.endsWith('.msi');
+}
+
+/// 无安装向导地运行安装包。
+///
+/// Inno Setup 的静默参数：
+///   /VERYSILENT         不显示任何界面
+///   /SUPPRESSMSGBOXES   连错误提示框也不弹
+///   /NORESTART          不自动重启系统
+///   /CLOSEAPPLICATIONS  需要替换文件时把本应用关掉
+/// 安装包是「按用户安装」（PrivilegesRequired=lowest），所以不会弹 UAC。
+Future<bool> _runInstallerSilently(String path) async {
+  try {
+    if (path.toLowerCase().endsWith('.msi')) {
+      await Process.start('msiexec', [
+        '/i',
+        path,
+        '/qn',
+        '/norestart',
+      ], mode: ProcessStartMode.detached);
+    } else {
+      await Process.start(path, const [
+        '/VERYSILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/CLOSEAPPLICATIONS',
+        '/RESTARTAPPLICATIONS',
+      ], mode: ProcessStartMode.detached);
+    }
+    return true;
+  } catch (error) {
+    debugPrint('静默安装启动失败：$error');
+    return false;
+  }
+}
 
 /// 下载结果。必须区分「用户取消」「下载失败」「已保存」三种，
 /// 否则取消也会被当成失败去跳浏览器。
