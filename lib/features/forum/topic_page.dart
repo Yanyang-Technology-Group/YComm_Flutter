@@ -418,7 +418,10 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     ),
                     ...posts.asMap().entries.map((entry) {
                       final p = entry.value;
-                      final first = entry.key == 0;
+                      // 楼层标签跟 position 字段走（与网页版一致）：position 1
+                      // 是楼主帖，可能在列表最下方（接口按时间倒序返回），
+                      // 不能用列表下标当楼层。
+                      final floor = (p['position'] as num?)?.toInt();
                       final author = str(
                         p['authorDisplayName'],
                         str(p['authorUsername'], '访客'),
@@ -499,7 +502,11 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                     ),
                                   ),
                                 ),
-                                SmallTag(first ? '楼主' : '${entry.key + 1} 楼'),
+                                SmallTag(
+                                  floor == 1
+                                      ? '楼主'
+                                      : '${floor ?? entry.key + 1} 楼',
+                                ),
                                 if (canEditReply(
                                       ref.watch(sessionProvider).value,
                                       contentAuthorId(p),

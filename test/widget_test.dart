@@ -15,6 +15,16 @@ class TestApi extends CommunityApi {
   final calls = <String>[];
   bool fail = false, signedIn = false, failSend = false;
   Json? sentBody;
+
+  /// 主题详情的帖子列表（接口按时间倒序返回：新的在上面，楼主帖在最下方）。
+  List<Json> topicPosts = const [
+    {
+      'id': 'p1',
+      'content_md': '正文内容',
+      'authorUsername': 'member',
+      'position': 1,
+    },
+  ];
   @override
   Future<Json> post(String path, [Json? body]) async {
     calls.add(path);
@@ -68,9 +78,7 @@ class TestApi extends CommunityApi {
     if (path == '/forum/topics/t1') {
       return {
         'topic': {'id': 't1', 'title': '真实接口讨论', 'board_id': 'b1'},
-        'posts': [
-          {'id': 'p1', 'content_md': '正文内容', 'authorUsername': 'member'},
-        ],
+        'posts': topicPosts,
         'likedPostIds': [],
       };
     }
@@ -294,6 +302,61 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('保留的回复'), findsNothing);
     expect(find.text('回复 member'), findsNothing);
+  });
+  testWidgets('楼层标签跟 position 走：最下方的楼主帖显示「楼主」，排序保持倒序', (
+    tester,
+  ) async {
+    // 复现用户场景：发「测试」帖后有人回「测试」——接口按时间倒序返回，
+    // 回复在上、楼主帖在最下方；此前客户端按下标贴标签，把回复标成了「楼主」。
+    final api = TestApi()
+      ..topicPosts = [
+        {
+          'id': 'p2',
+          'content_md': '测试',
+          'authorUsername': 'replier',
+          'position': 2,
+        },
+        {
+          'id': 'p1',
+          'content_md': '测试',
+          'authorUsername': 'member',
+          'position': 1,
+        },
+      ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [communityProvider.overrideWithValue(api)],
+        child: Consumer(
+          builder: (context, ref, _) {
+            ref.watch(sessionProvider);
+            return const MaterialApp(home: TopicPage(id: 't1'));
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 原有排序不改：回复（第一条）在上，楼主帖（第二条）在下。
+    final replyY = tester.getTopLeft(find.text('测试').first).dy;
+    final opY = tester.getTopLeft(find.text('测试').last).dy;
+    expect(replyY, lessThan(opY), reason: '应保持时间倒序：回复在上、楼主帖在下');
+
+    // 标签跟 position 字段：最下方的楼主帖标「楼主」，回复标真实楼层「2 楼」。
+    expect(find.text('楼主'), findsOneWidget);
+    expect(find.text('2 楼'), findsOneWidget);
+    final ownerTagY = tester.getTopLeft(find.text('楼主')).dy;
+    expect(
+      ownerTagY,
+      greaterThan(replyY),
+      reason: '「楼主」应贴在下方楼主帖上，而不是最上面的回复',
+    );
+    expect(ownerTagY, lessThan(opY), reason: '「楼主」应在楼主帖头部（正文上方）');
+    expect(
+      tester.getTopLeft(find.text('2 楼')).dy,
+      lessThan(replyY),
+      reason: '「2 楼」应贴在上方回复的头部',
+    );
+    expect(tester.takeException(), isNull);
   });
   testWidgets('compose protects unsubmitted content', (tester) async {
     await tester.pumpWidget(
