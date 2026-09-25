@@ -83,6 +83,30 @@ class TestApi extends CommunityApi {
     }
     if (path == '/downloads/categories') return {'categories': []};
     if (path == '/downloads/resources') return {'resources': [], 'total': 0};
+    if (path == '/auth/sessions') {
+      return {
+        'sessions': [
+          {
+            'id': 's-cur',
+            'device': 'YComm 客户端 · Android',
+            'ip': '203.0.113.7',
+            'createdAt': '2026-09-25T01:00:00.000Z',
+            'lastUsedAt': null,
+            'expiresAt': '2026-10-01T01:00:00.000Z',
+            'isCurrent': true,
+          },
+          {
+            'id': 's-other',
+            'device': 'Chrome · Windows',
+            'ip': null,
+            'createdAt': '2026-09-24T01:00:00.000Z',
+            'lastUsedAt': '2026-09-25T00:30:00.000Z',
+            'expiresAt': '2026-10-01T01:00:00.000Z',
+            'isCurrent': false,
+          },
+        ],
+      };
+    }
     return {};
   }
 }

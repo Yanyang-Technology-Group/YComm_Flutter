@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/adaptive.dart';
+import '../../core/design/apple_chrome.dart';
+import '../../core/design/tokens.dart';
 import '../../core/network/community_api.dart';
 import '../../core/widgets/design.dart';
 
@@ -181,10 +183,7 @@ class _SessionList extends StatelessWidget {
         Text(
           '一次登录就是一条会话（同一台设备上的不同浏览器或 App 分别列出）。'
           '退出其他设备后，对应设备需要重新登录；当前设备请用「我的」页的「退出登录」。',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            height: 1.6,
-          ),
+          style: _metaStyle(context),
         ),
         if (error != null) ...[
           const SizedBox(height: 12),
@@ -205,7 +204,7 @@ class _SessionList extends StatelessWidget {
           StatePanel(
             title: '没有有效的登录会话',
             message: '重新登录后，设备会出现在这里。',
-            icon: Icons.devices_other_outlined,
+            icon: Icons.devices_outlined,
           )
         else
           for (final session in sessions) ...[
@@ -243,14 +242,22 @@ class _SessionCard extends StatelessWidget {
     final isCurrent = session['isCurrent'] == true;
     final id = str(session['id']);
     final scheme = Theme.of(context).colorScheme;
+    final apple = appleTokensOf(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .5)),
-      ),
+      padding: EdgeInsets.all(apple != null ? AppleSpacing.lg : 16),
+      decoration: apple != null
+          ? BoxDecoration(
+              color: apple.cardBackground,
+              borderRadius: BorderRadius.circular(AppleRadius.card),
+            )
+          : BoxDecoration(
+              color: scheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: .5),
+              ),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -259,7 +266,7 @@ class _SessionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   str(session['device'], '未知设备'),
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: _titleStyle(context),
                 ),
               ),
               if (isCurrent) ...[
@@ -302,12 +309,34 @@ class _MetaLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-      height: 1.7,
-    );
-    return Text('$label：$value', style: style);
+    return Text('$label：$value', style: _metaStyle(context));
   }
+}
+
+/// 双风格文字样式：Apple 用 tokens 排版，Material 跟随主题。
+TextStyle _titleStyle(BuildContext context) {
+  final apple = appleTokensOf(context);
+  if (apple != null) {
+    return AppleType.headline.copyWith(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontFamilyFallback: appleFontFallback,
+    );
+  }
+  return Theme.of(context).textTheme.titleMedium!;
+}
+
+TextStyle _metaStyle(BuildContext context) {
+  final apple = appleTokensOf(context);
+  if (apple != null) {
+    return AppleType.footnote.copyWith(
+      color: apple.secondaryLabel,
+      fontFamilyFallback: appleFontFallback,
+    );
+  }
+  return Theme.of(context).textTheme.bodySmall!.copyWith(
+    color: Theme.of(context).colorScheme.onSurfaceVariant,
+    height: 1.7,
+  );
 }
 
 class _InlineError extends StatelessWidget {

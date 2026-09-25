@@ -10,6 +10,8 @@ import 'package:ycomm_client/core/widgets/design.dart';
 import 'package:ycomm_client/features/profile/appearance_page.dart';
 import 'package:ycomm_client/features/profile/settings_page.dart';
 import 'package:ycomm_client/features/profile/about_page.dart';
+import 'package:ycomm_client/features/profile/account_security_page.dart';
+import 'package:ycomm_client/features/profile/login_devices_page.dart';
 import 'package:ycomm_client/features/auth/login_page.dart';
 import 'package:ycomm_client/features/auth/register_page.dart';
 import 'package:ycomm_client/features/auth/forgot_password_page.dart';
@@ -242,6 +244,8 @@ void main() {
           const AppearancePage(),
           const SettingsPage(),
           const AboutPage(),
+          const AccountSecurityPage(),
+          const LoginDevicesPage(),
           const LoginPage(),
           const RegisterPage(),
           const ForgotPasswordPage(),
