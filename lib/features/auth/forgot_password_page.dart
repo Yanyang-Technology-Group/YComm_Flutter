@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
@@ -40,8 +42,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('找回密码')),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(title: const Text('找回密码')),
     body: SafeArea(
       child: Form(
         key: form,
@@ -51,19 +53,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ? [
                   const Text('若邮箱已注册，请查收重置邮件。'),
                   const SizedBox(height: 24),
-                  FilledButton(
+                  AppFilledButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('返回登录'),
                   ),
                 ]
               : [
-                  TextFormField(
+                  AppTextFormField(
                     controller: email,
                     enabled: !busy,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: '注册邮箱',
-                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                      prefixIcon: AppIcon(Icons.mail_outline_rounded),
                     ),
                     validator: (v) =>
                         v == null ||
@@ -74,7 +76,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   AuthError(error),
                   const SizedBox(height: 24),
-                  FilledButton(
+                  AppFilledButton(
                     onPressed: busy ? null : submit,
                     child: Text(busy ? '正在发送…' : '发送重置邮件'),
                   ),

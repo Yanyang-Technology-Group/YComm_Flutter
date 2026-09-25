@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 // 更新相关的界面：手动检查结果、自动提示、下载并交给系统安装器。
 import 'dart:io';
 
@@ -59,9 +61,7 @@ Future<void> _showResult(
         context,
         title: '无法自动检查',
         message: state.message ?? '暂时拿不到更新信息，请到社区下载区查看。',
-        secondary: info == null
-            ? null
-            : () => _download(context, ref, info),
+        secondary: info == null ? null : () => _download(context, ref, info),
         secondaryLabel: info == null ? null : '仍要下载 ${info.version}',
       );
     case UpdateStatus.failed:
@@ -84,9 +84,9 @@ Future<void> _showFound(
   bool manual = false,
 }) async {
   final controller = ref.read(updateControllerProvider.notifier);
-  final action = await showDialog<String>(
+  final action = await appShowDialog<String>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => AppAlertDialog(
       title: Text(manual ? '发现新版本' : '有新版本可用'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -111,14 +111,14 @@ Future<void> _showFound(
       ),
       actions: [
         if (info.checksumUrl != null)
-          TextButton(
+          AppTextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               externalLink(dialogContext, info.checksumUrl!);
             },
             child: const Text('校验文件'),
           ),
-        TextButton(
+        AppTextButton(
           onPressed: () async {
             await controller.dismiss(info.version);
             if (dialogContext.mounted) {
@@ -127,11 +127,11 @@ Future<void> _showFound(
           },
           child: const Text('不再提醒'),
         ),
-        TextButton(
+        AppTextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('稍后'),
         ),
-        FilledButton(
+        AppFilledButton(
           onPressed: () => Navigator.of(dialogContext).pop('download'),
           child: const Text('下载安装'),
         ),
@@ -149,21 +149,21 @@ Future<void> _simple(
   required String message,
   VoidCallback? secondary,
   String? secondaryLabel,
-}) => showDialog<void>(
+}) => appShowDialog<void>(
   context: context,
-  builder: (dialogContext) => AlertDialog(
+  builder: (dialogContext) => AppAlertDialog(
     title: Text(title),
     content: Text(message),
     actions: [
       if (secondary != null && secondaryLabel != null)
-        TextButton(
+        AppTextButton(
           onPressed: () {
             Navigator.of(dialogContext).pop();
             secondary();
           },
           child: Text(secondaryLabel),
         ),
-      FilledButton(
+      AppFilledButton(
         onPressed: () => Navigator.of(dialogContext).pop(),
         child: const Text('好'),
       ),
@@ -177,7 +177,7 @@ Future<void> _download(
   WidgetRef ref,
   UpdateInfo info,
 ) async {
-  final result = await showDialog<_DownloadResult>(
+  final result = await appShowDialog<_DownloadResult>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _DownloadDialog(info: info),
@@ -332,18 +332,24 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       : _DownloadResult.failed(failure));
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AppAlertDialog(
     title: Text('正在下载 ${widget.info.version}'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.info.fileName, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          widget.info.fileName,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 16),
         if (failure == null)
-          LinearProgressIndicator(value: progress)
+          AppProgress(value: progress)
         else
-          Text(failure!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Text(
+            failure!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         const SizedBox(height: 8),
         Text(
           failure == null
@@ -357,7 +363,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
     ),
     actions: [
       if (failure == null)
-        TextButton(
+        AppTextButton(
           onPressed: () {
             cancel.cancel();
             Navigator.of(context).pop(const _DownloadResult.cancelled());
@@ -365,7 +371,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
           child: const Text('取消'),
         )
       else
-        FilledButton(onPressed: _close, child: const Text('关闭')),
+        AppFilledButton(onPressed: _close, child: const Text('关闭')),
     ],
   );
 }

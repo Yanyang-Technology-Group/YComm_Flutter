@@ -137,7 +137,13 @@ ColorScheme _neutralScheme(Brightness brightness) {
   );
 }
 
-ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
+/// 由主题色推导配色方案。
+///
+/// 抽出来是因为 Material 与 Apple 两种风格**共用**这套强调色推导，只有中性色
+/// 不同：Apple 风格在拿到结果后再覆盖 surface / onSurface / outlineVariant 等
+/// 中性角色（见 core/design/apple_theme.dart）。强调色的取值只有一个来源，
+/// 两种风格切换时品牌色不会漂移。
+ColorScheme buildColorScheme(ThemeColour colour, Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final fromWebsite = colour.accent;
   var scheme = colour == ThemeColour.none
@@ -169,6 +175,11 @@ ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
       surfaceTint: accent,
     );
   }
+  return scheme;
+}
+
+ThemeData buildTheme(ThemeColour colour, Brightness brightness) {
+  final scheme = buildColorScheme(colour, brightness);
   final base = ThemeData(
     useMaterial3: true,
     fontFamily: 'Roboto',

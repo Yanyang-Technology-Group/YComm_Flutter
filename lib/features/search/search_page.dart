@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,26 +52,26 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('搜索社区')),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(title: const Text('搜索社区')),
     body: SafeArea(
       child: PageWidth(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-              child: TextField(
+              child: AppTextField(
                 controller: query,
                 autofocus: true,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => search(),
                 decoration: InputDecoration(
                   hintText: '搜索讨论标题与内容',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: IconButton(
+                  prefixIcon: const AppIcon(Icons.search_rounded),
+                  suffixIcon: AppIconButton(
                     tooltip: '开始搜索',
                     onPressed: search,
-                    icon: const Icon(Icons.arrow_forward_rounded),
+                    icon: const AppIcon(Icons.arrow_forward_rounded),
                   ),
                 ),
               ),

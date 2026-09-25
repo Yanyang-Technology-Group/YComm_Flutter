@@ -1,3 +1,5 @@
+import '../design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -78,7 +80,7 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
   }
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
+  Widget build(BuildContext context) => AppRefresh(
     onRefresh: () => load(),
     child: ListView(
       key: PageStorageKey('${widget.path}${widget.query}'),
@@ -91,15 +93,40 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
         else if (error != null && rows.isEmpty)
           ErrorPanel(error!, () => load())
         else ...[
-          if (loading) const LinearProgressIndicator(minHeight: 2),
+          if (loading) const AppProgress(minHeight: 2),
           if (rows.isEmpty)
             StatePanel(title: widget.emptyTitle, message: widget.emptyMessage),
-          ...rows.map(widget.itemBuilder),
+          if (isApple(context))
+            // Each row remains a separate sliver child. A single Column here
+            // would eagerly lay out every page and load offscreen avatars.
+            for (var i = 0; i < rows.length; i++)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  i == 0 ? 8 : 0,
+                  16,
+                  i == rows.length - 1 ? 8 : 0,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: i == 0 ? const Radius.circular(12) : Radius.zero,
+                    bottom: i == rows.length - 1
+                        ? const Radius.circular(12)
+                        : Radius.zero,
+                  ),
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                    child: widget.itemBuilder(rows[i]),
+                  ),
+                ),
+              )
+          else
+            ...rows.map(widget.itemBuilder),
           if (error != null) ErrorPanel(error!, () => load(append: lastAppend)),
           if (error == null && rows.length < total)
             Padding(
               padding: const EdgeInsets.all(24),
-              child: OutlinedButton(
+              child: AppOutlinedButton(
                 onPressed: more ? null : () => load(append: true),
                 child: Text(more ? '正在加载…' : '继续加载 · ${rows.length} / $total'),
               ),
@@ -114,7 +141,7 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
               ),
             ),
         ],
-        const SizedBox(height: 90),
+        SizedBox(height: isApple(context) ? 16 : 90),
       ],
     ),
   );

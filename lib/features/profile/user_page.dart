@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,8 +28,8 @@ class _UserPageState extends ConsumerState<UserPage> {
       .read(communityProvider)
       .get('/users/${Uri.encodeComponent(widget.username)}');
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('个人主页')),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(title: const Text('个人主页')),
     body: SafeArea(
       child: PageWidth(
         child: FutureBuilder<Json>(
@@ -70,18 +72,45 @@ class _UserPageState extends ConsumerState<UserPage> {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 const SizedBox(height: 20),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    SmallTag('${user['postCount'] ?? 0} 帖子'),
-                    SmallTag('${user['likeReceivedCount'] ?? 0} 获赞'),
-                    SmallTag('${user['followerCount'] ?? 0} 粉丝'),
-                  ],
-                ),
+                if (isApple(context))
+                  Row(
+                    children: [
+                      for (final stat in <(String, String)>[
+                        ('${user['postCount'] ?? 0}', '帖子'),
+                        ('${user['likeReceivedCount'] ?? 0}', '获赞'),
+                        ('${user['followerCount'] ?? 0}', '粉丝'),
+                      ])
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                stat.$1,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                stat.$2,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  )
+                else
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SmallTag('${user['postCount'] ?? 0} 帖子'),
+                      SmallTag('${user['likeReceivedCount'] ?? 0} 获赞'),
+                      SmallTag('${user['followerCount'] ?? 0} 粉丝'),
+                    ],
+                  ),
                 const SizedBox(height: 24),
                 if (user['isSelf'] != true)
-                  FilledButton.icon(
+                  AppFilledButton.icon(
                     onPressed: busy
                         ? null
                         : () async {
@@ -103,7 +132,7 @@ class _UserPageState extends ConsumerState<UserPage> {
                               if (mounted) setState(() => busy = false);
                             }
                           },
-                    icon: Icon(
+                    icon: AppIcon(
                       user['viewerFollowsTarget'] == true
                           ? Icons.check_rounded
                           : Icons.person_add_alt_rounded,
@@ -117,7 +146,7 @@ class _UserPageState extends ConsumerState<UserPage> {
                     ),
                   ),
                 const SizedBox(height: 28),
-                const Divider(),
+                const AppDivider(),
                 const SizedBox(height: 28),
                 Text('个人介绍', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 16),

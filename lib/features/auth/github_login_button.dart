@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -23,7 +25,7 @@ class GithubLoginButton extends StatelessWidget {
   const GithubLoginButton({super.key, required this.onPressed});
   final VoidCallback? onPressed;
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
+  Widget build(BuildContext context) => AppOutlinedButton.icon(
     onPressed: onPressed,
     icon: Image.asset(
       'assets/github_mark.png',

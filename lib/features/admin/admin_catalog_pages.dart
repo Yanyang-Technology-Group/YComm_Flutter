@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,19 +79,21 @@ class _AdminBoardsPageState extends ConsumerState<AdminBoardsPage> {
   Future<void> menu(Json row) async {
     final identity = AdminAccess(ref.read(sessionProvider).value).identity;
     final archived = _archived(row);
-    final choice = await showModalBottomSheet<String>(
+    final choice = await appShowModalBottomSheet<String>(
       context: context,
       builder: (c) => SafeArea(
         child: Wrap(
           children: [
             if (!archived)
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
+              AppListTile(
+                leading: const AppIcon(Icons.edit_outlined),
                 title: const Text('编辑版块'),
                 onTap: () => Navigator.pop(c, 'edit'),
               ),
-            ListTile(
-              leading: Icon(archived ? Icons.restore : Icons.archive_outlined),
+            AppListTile(
+              leading: AppIcon(
+                archived ? Icons.restore : Icons.archive_outlined,
+              ),
               title: Text(archived ? '恢复版块' : '归档版块'),
               onTap: () => Navigator.pop(c, archived ? 'restore' : 'archive'),
             ),
@@ -145,10 +149,10 @@ class _AdminBoardsPageState extends ConsumerState<AdminBoardsPage> {
       paginated: false,
       header: Align(
         alignment: Alignment.centerRight,
-        child: IconButton.filledTonal(
+        child: AppIconButton.filledTonal(
           tooltip: '新建版块',
           onPressed: create,
-          icon: const Icon(Icons.add),
+          icon: const AppIcon(Icons.add),
         ),
       ),
       itemBuilder: (c, row, refresh) => AdminTile(
@@ -274,41 +278,41 @@ class _AdminCardsPageState extends ConsumerState<AdminCardsPage> {
     final access = AdminAccess(ref.read(sessionProvider).value);
     final identity = access.identity;
     final owner = access.isOwner;
-    final choice = await showModalBottomSheet<String>(
+    final choice = await appShowModalBottomSheet<String>(
       context: context,
       builder: (c) => SafeArea(
         child: Wrap(
           children: [
-            ListTile(
+            AppListTile(
               title: const Text('编辑卡片'),
-              leading: const Icon(Icons.edit_outlined),
+              leading: const AppIcon(Icons.edit_outlined),
               onTap: () => Navigator.pop(c, 'edit'),
             ),
-            ListTile(
+            AppListTile(
               title: const Text('上移'),
-              leading: const Icon(Icons.arrow_upward),
+              leading: const AppIcon(Icons.arrow_upward),
               onTap: () => Navigator.pop(c, 'up'),
             ),
-            ListTile(
+            AppListTile(
               title: const Text('下移'),
-              leading: const Icon(Icons.arrow_downward),
+              leading: const AppIcon(Icons.arrow_downward),
               onTap: () => Navigator.pop(c, 'down'),
             ),
             if (owner && str(row['status']) == 'pending') ...[
-              ListTile(
+              AppListTile(
                 title: const Text('通过审核'),
-                leading: const Icon(Icons.check_circle_outline),
+                leading: const AppIcon(Icons.check_circle_outline),
                 onTap: () => Navigator.pop(c, 'approve'),
               ),
-              ListTile(
+              AppListTile(
                 title: const Text('驳回审核'),
-                leading: const Icon(Icons.cancel_outlined),
+                leading: const AppIcon(Icons.cancel_outlined),
                 onTap: () => Navigator.pop(c, 'reject'),
               ),
             ],
-            ListTile(
+            AppListTile(
               title: const Text('删除卡片'),
-              leading: Icon(
+              leading: AppIcon(
                 Icons.delete_outline,
                 color: Theme.of(c).colorScheme.error,
               ),
@@ -416,7 +420,7 @@ class _AdminCardsPageState extends ConsumerState<AdminCardsPage> {
   @override
   Widget build(BuildContext context) => AdminPage(
     title: '下载卡片',
-    child: RefreshIndicator(
+    child: AppRefresh(
       onRefresh: load,
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -424,10 +428,10 @@ class _AdminCardsPageState extends ConsumerState<AdminCardsPage> {
         children: [
           Align(
             alignment: Alignment.centerRight,
-            child: IconButton.filledTonal(
+            child: AppIconButton.filledTonal(
               tooltip: '新建卡片',
               onPressed: create,
-              icon: const Icon(Icons.add),
+              icon: const AppIcon(Icons.add),
             ),
           ),
           if (loading)
@@ -507,10 +511,10 @@ class _AdminBadgesPageState extends ConsumerState<AdminBadgesPage> {
       paginated: false,
       header: Align(
         alignment: Alignment.centerRight,
-        child: IconButton.filledTonal(
+        child: AppIconButton.filledTonal(
           tooltip: '新建徽章',
           onPressed: create,
-          icon: const Icon(Icons.add),
+          icon: const AppIcon(Icons.add),
         ),
       ),
       itemBuilder: (c, row, refresh) => AdminTile(
@@ -553,24 +557,24 @@ class _AdminInvitesPageState extends ConsumerState<AdminInvitesPage> {
   }
 
   Future<void> action(Json row) async {
-    final choice = await showModalBottomSheet<String>(
+    final choice = await appShowModalBottomSheet<String>(
       context: context,
       builder: (c) => SafeArea(
         child: Wrap(
           children: [
-            ListTile(
+            AppListTile(
               title: const Text('复制邀请码'),
-              leading: const Icon(Icons.copy),
+              leading: const AppIcon(Icons.copy),
               onTap: () => Navigator.pop(c, 'copy'),
             ),
-            ListTile(
+            AppListTile(
               title: const Text('使用记录'),
-              leading: const Icon(Icons.people_outline),
+              leading: const AppIcon(Icons.people_outline),
               onTap: () => Navigator.pop(c, 'uses'),
             ),
-            ListTile(
+            AppListTile(
               title: const Text('删除邀请码'),
-              leading: Icon(
+              leading: AppIcon(
                 Icons.delete_outline,
                 color: Theme.of(c).colorScheme.error,
               ),
@@ -584,8 +588,7 @@ class _AdminInvitesPageState extends ConsumerState<AdminInvitesPage> {
     if (choice == 'copy') {
       await Clipboard.setData(ClipboardData(text: str(row['code'])));
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('邀请码已复制')));
+        appNotice(context, '邀请码已复制');
       }
       return;
     }
@@ -615,10 +618,10 @@ class _AdminInvitesPageState extends ConsumerState<AdminInvitesPage> {
       paginated: false,
       header: Align(
         alignment: Alignment.centerRight,
-        child: IconButton.filledTonal(
+        child: AppIconButton.filledTonal(
           tooltip: '新建邀请码',
           onPressed: create,
-          icon: const Icon(Icons.add),
+          icon: const AppIcon(Icons.add),
         ),
       ),
       itemBuilder: (c, row, refresh) => AdminTile(
