@@ -56,7 +56,11 @@ class UpdateController extends Notifier<UpdateState> {
   /// 手动检查：每次都真的请求。
   Future<UpdateState> check() => _run();
 
-  /// 自动检查：距上次不足 [autoCheckInterval] 就跳过，返回 null 表示「没查」。
+  /// 应用启动时的检查：每次启动都真的请求一遍。
+  Future<UpdateState> checkOnLaunch() => _run();
+
+  /// 回到前台时的检查：距上次不足 [autoCheckInterval] 就跳过，
+  /// 返回 null 表示「没查」。启动那次走 [checkOnLaunch]，不受这个间隔限制。
   Future<UpdateState?> autoCheck() async {
     final prefs = await _prefs;
     final last = prefs.getInt(lastCheckKey) ?? 0;

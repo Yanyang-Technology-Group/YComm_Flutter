@@ -171,10 +171,10 @@ class _AppShellState extends ConsumerState<AppShell>
         if (after > before) notifyUnread(after);
       });
     }
-    // 启动后自动检查一次更新；6 小时内重复启动不会再打接口，
+    // 启动后自动检查一次更新：每次启动都真的查（onLaunch: true），
     // 发现新版本且用户没点过「不再提醒」才弹窗。
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) autoCheckForUpdates(context, ref);
+      if (mounted) autoCheckForUpdates(context, ref, onLaunch: true);
     });
   }
 

@@ -25,10 +25,19 @@ Future<void> checkForUpdates(BuildContext context, WidgetRef ref) async {
   await _showResult(context, ref, state);
 }
 
-/// 启动与回到前台时的自动检查：只有发现新版本、且用户没点过「不再提醒」才弹窗。
-Future<void> autoCheckForUpdates(BuildContext context, WidgetRef ref) async {
+/// 自动检查：只有发现新版本、且用户没点过「不再提醒」才弹窗。
+///
+/// [onLaunch] 为 true 表示「这次是应用启动」，每次启动都真的请求一遍；
+/// 回到前台则走节流版本，避免每切一次窗口就打一次接口。
+Future<void> autoCheckForUpdates(
+  BuildContext context,
+  WidgetRef ref, {
+  bool onLaunch = false,
+}) async {
   final controller = ref.read(updateControllerProvider.notifier);
-  final state = await controller.autoCheck();
+  final state = onLaunch
+      ? await controller.checkOnLaunch()
+      : await controller.autoCheck();
   final info = state?.info;
   if (state?.status != UpdateStatus.found || info == null) {
     return;
