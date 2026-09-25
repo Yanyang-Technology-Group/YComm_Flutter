@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,7 +53,7 @@ class _AdminGuardState extends ConsumerState<AdminGuard> {
         child: StatePanel(
           title: '请先登录',
           message: '登录管理员账号后访问管理中心。',
-          action: OutlinedButton(
+          action: AppOutlinedButton(
             onPressed: () => requireSession(context, ref),
             child: const Text('登录'),
           ),

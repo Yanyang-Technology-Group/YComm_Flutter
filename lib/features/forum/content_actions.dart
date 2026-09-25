@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/network/community_api.dart';
@@ -34,17 +36,17 @@ Future<bool> confirmContentAction(
   required String confirmLabel,
   bool destructive = true,
 }) async =>
-    await showDialog<bool>(
+    await appShowDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('取消'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: destructive
                 ? TextButton.styleFrom(
@@ -63,7 +65,7 @@ Future<bool> editReplyDialog(
   String initial, {
   required Future<void> Function(String) onSave,
 }) async {
-  return await showDialog<bool>(
+  return await appShowDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (_) => _EditReplyDialog(initial: initial, onSave: onSave),
@@ -145,13 +147,13 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) cancel();
     },
-    child: AlertDialog(
+    child: AppAlertDialog(
       title: const Text('编辑回复'),
       scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
+          AppTextField(
             controller: controller,
             enabled: !busy,
             autofocus: true,
@@ -172,8 +174,8 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: busy ? null : cancel, child: const Text('取消')),
-        FilledButton(
+        AppTextButton(onPressed: busy ? null : cancel, child: const Text('取消')),
+        AppFilledButton(
           onPressed: busy ? null : save,
           child: Text(busy ? '正在保存…' : '保存'),
         ),

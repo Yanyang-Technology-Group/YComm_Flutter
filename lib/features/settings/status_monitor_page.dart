@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,14 +56,14 @@ class _StatusMonitorPageState extends ConsumerState<StatusMonitorPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
+    return AppScaffold(
+      appBar: AppNavigationBar(
         title: const Text('状态监测'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: '重新检测',
             onPressed: running ? null : rerun,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const AppIcon(Icons.refresh_rounded),
           ),
         ],
       ),
@@ -74,7 +76,7 @@ class _StatusMonitorPageState extends ConsumerState<StatusMonitorPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
+                    AppSpinner(),
                     SizedBox(height: 16),
                     Text('正在检测……'),
                   ],
@@ -82,25 +84,23 @@ class _StatusMonitorPageState extends ConsumerState<StatusMonitorPage> {
               );
             }
             if (snapshot.hasError) {
-              return ListView(
-                children: [ErrorPanel(snapshot.error!, rerun)],
-              );
+              return ListView(children: [ErrorPanel(snapshot.error!, rerun)]);
             }
             final value = snapshot.data!;
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                Card(
+                AppCard(
                   elevation: 0,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        CircleAvatar(
+                        AppCircleAvatar(
                           backgroundColor: value.passed
                               ? colors.primaryContainer
                               : colors.errorContainer,
-                          child: Icon(
+                          child: AppIcon(
                             value.passed
                                 ? Icons.check_rounded
                                 : Icons.error_outline,
@@ -128,10 +128,10 @@ class _StatusMonitorPageState extends ConsumerState<StatusMonitorPage> {
                             ],
                           ),
                         ),
-                        IconButton(
+                        AppIconButton(
                           tooltip: '复制报告',
                           onPressed: () => copyReport(value),
-                          icon: const Icon(Icons.copy_rounded),
+                          icon: const AppIcon(Icons.copy_rounded),
                         ),
                       ],
                     ),
@@ -139,18 +139,18 @@ class _StatusMonitorPageState extends ConsumerState<StatusMonitorPage> {
                 ),
                 const SizedBox(height: 12),
                 for (final check in value.checks)
-                  Card(
+                  AppCard(
                     elevation: 0,
                     margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(
+                    child: AppListTile(
+                      leading: AppIcon(
                         check.ok
                             ? Icons.check_circle_outline
                             : Icons.error_outline,
                         color: check.ok ? colors.primary : colors.error,
                       ),
                       title: Text(check.name),
-                      subtitle: SelectableText(
+                      subtitle: AppSelectableText(
                         check.detail.isEmpty ? '-' : check.detail,
                       ),
                       trailing: Text('${check.elapsedMs} ms'),

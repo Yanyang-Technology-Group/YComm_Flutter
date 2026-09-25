@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -75,9 +77,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     if (!mounted) return;
     final link = str(n['linkUrl']);
     if (link.isEmpty) {
-      await showDialog<void>(
+      await appShowDialog<void>(
         context: context,
-        builder: (c) => AlertDialog(
+        builder: (c) => AppAlertDialog(
           title: MarkdownText(str(n['title'])),
           content: SizedBox(
             width: double.maxFinite,
@@ -86,7 +88,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             ),
           ),
           actions: [
-            TextButton(
+            AppTextButton(
               onPressed: () => Navigator.pop(c),
               child: const Text('知道了'),
             ),
@@ -130,7 +132,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     return SafeArea(
       bottom: false,
       child: PageWidth(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () => ref.read(notificationsProvider.notifier).refresh(),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -139,19 +141,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 '消息',
                 action: session.value == null
                     ? null
-                    : IconButton(
+                    : AppIconButton(
                         tooltip: '全部标记为已读',
                         onPressed: marking || unread == 0
                             ? null
                             : () => mark(['*']),
-                        icon: const Icon(Icons.done_all_rounded),
+                        icon: const AppIcon(Icons.done_all_rounded),
                       ),
               ),
               if (session.value == null)
                 StatePanel(
                   title: '登录后查看消息',
                   icon: Icons.mark_chat_unread_outlined,
-                  action: FilledButton(
+                  action: AppFilledButton(
                     onPressed: () => requireSession(context, ref),
                     child: const Text('登录查看'),
                   ),
@@ -159,23 +161,48 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               else ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                  child: Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('全部消息'),
-                        selected: !unreadOnly,
-                        showCheckmark: false,
-                        onSelected: (_) => setState(() => unreadOnly = false),
-                      ),
-                      ChoiceChip(
-                        label: Text('未读${unread > 0 ? ' · $unread' : ''}'),
-                        selected: unreadOnly,
-                        showCheckmark: false,
-                        onSelected: (_) => setState(() => unreadOnly = true),
-                      ),
-                    ],
-                  ),
+                  child: isApple(context)
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: AppSegmentedButton<bool>(
+                            segments: [
+                              const ButtonSegment(
+                                value: false,
+                                label: Text('全部消息'),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                label: Text(
+                                  '未读${unread > 0 ? ' · $unread' : ''}',
+                                ),
+                              ),
+                            ],
+                            selected: {unreadOnly},
+                            onSelectionChanged: (value) =>
+                                setState(() => unreadOnly = value.first),
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          children: [
+                            AppChoiceChip(
+                              label: const Text('全部消息'),
+                              selected: !unreadOnly,
+                              showCheckmark: false,
+                              onSelected: (_) =>
+                                  setState(() => unreadOnly = false),
+                            ),
+                            AppChoiceChip(
+                              label: Text(
+                                '未读${unread > 0 ? ' · $unread' : ''}',
+                              ),
+                              selected: unreadOnly,
+                              showCheckmark: false,
+                              onSelected: (_) =>
+                                  setState(() => unreadOnly = true),
+                            ),
+                          ],
+                        ),
                 ),
                 feed.when(
                   loading: () => const LoadingRows(),
@@ -201,19 +228,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       children: list.map((n) {
                         final fresh = (n['unreadCount'] as num? ?? 0) > 0;
                         final actor = jsonList(n['actors']).firstOrNull;
-                        return Material(
+                        return AppSurface(
                           color: fresh
                               ? Theme.of(context).colorScheme.primaryContainer
                                     .withValues(alpha: .22)
                               : Colors.transparent,
-                          child: InkWell(
+                          child: AppTap(
                             onTap: marking ? null : () => visit(n),
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Badge(
+                                  AppBadge(
                                     isLabelVisible: fresh,
                                     child: UserAvatar(
                                       actor == null

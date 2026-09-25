@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,18 +29,23 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
   @override
   Widget build(BuildContext context) {
     final modeSwitch = Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: SegmentedButton<bool>(
+      padding: EdgeInsets.fromLTRB(
+        isApple(context) ? 20 : 24,
+        0,
+        isApple(context) ? 20 : 24,
+        20,
+      ),
+      child: AppSegmentedButton<bool>(
         segments: const [
           ButtonSegment(
             value: true,
             label: Text('资源目录'),
-            icon: Icon(Icons.folder_open_rounded),
+            icon: AppIcon(Icons.folder_open_rounded),
           ),
           ButtonSegment(
             value: false,
             label: Text('社区分享'),
-            icon: Icon(Icons.inventory_2_outlined),
+            icon: AppIcon(Icons.inventory_2_outlined),
           ),
         ],
         selected: {directory},
@@ -80,38 +87,54 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
             children: [
               const PageIntro('资源'),
               modeSwitch,
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    ChoiceChip(
-                      label: const Text('全部资源'),
-                      selected: categoryId == null,
-                      showCheckmark: false,
-                      onSelected: (_) => setState(() => category = null),
-                    ),
-                    ...?(categories.value?.map(
-                      (c) => Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: ChoiceChip(
-                          label: MarkdownText(str(c['name']), maxLines: 1),
-                          selected: categoryId == c['id'],
-                          showCheckmark: false,
-                          onSelected: (_) =>
-                              setState(() => category = str(c['id'])),
-                        ),
+              if (isApple(context))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: AppleChoiceMenu<String>(
+                    semanticLabel: '选择资源分类',
+                    value: categoryId ?? '',
+                    choices: {
+                      '': const Text('全部资源'),
+                      for (final item in categories.value ?? <Json>[])
+                        str(item['id']): MarkdownText(str(item['name'])),
+                    },
+                    onChanged: (value) =>
+                        setState(() => category = value.isEmpty ? null : value),
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      AppChoiceChip(
+                        label: const Text('全部资源'),
+                        selected: categoryId == null,
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => category = null),
                       ),
-                    )),
-                  ],
+                      ...?(categories.value?.map(
+                        (c) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: AppChoiceChip(
+                            label: MarkdownText(str(c['name']), maxLines: 1),
+                            selected: categoryId == c['id'],
+                            showCheckmark: false,
+                            onSelected: (_) =>
+                                setState(() => category = str(c['id'])),
+                          ),
+                        ),
+                      )),
+                    ],
+                  ),
                 ),
-              ),
               if (categories.hasError)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: TextButton.icon(
+                  child: AppTextButton.icon(
                     onPressed: () => ref.invalidate(categoriesProvider),
-                    icon: const Icon(Icons.refresh, size: 18),
+                    icon: const AppIcon(Icons.refresh, size: 18),
                     label: const Text('分类加载失败，点击重试'),
                   ),
                 ),

@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/widgets/design.dart';
@@ -16,20 +18,20 @@ class AdminDashboardPage extends StatelessWidget {
     child: ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       children: [
-        ListTile(
+        AppListTile(
           contentPadding: const EdgeInsets.symmetric(
             vertical: 12,
             horizontal: 4,
           ),
-          leading: Icon(
+          leading: AppIcon(
             Icons.fact_check_outlined,
             color: Theme.of(context).colorScheme.primary,
           ),
           title: Text('内容审核', style: Theme.of(context).textTheme.titleLarge),
-          trailing: const Icon(Icons.chevron_right_rounded),
+          trailing: const AppIcon(Icons.chevron_right_rounded),
           onTap: () => openPage(context, const ModerationPage()),
         ),
-        const Divider(),
+        const AppDivider(),
         const SizedBox(height: 28),
         _Section(
           title: '日常管理',
@@ -122,12 +124,12 @@ class _Section extends StatelessWidget {
               for (final e in entries)
                 SizedBox(
                   width: (constraints.maxWidth - (columns - 1) * 24) / columns,
-                  child: ListTile(
+                  child: AppListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 4,
                       vertical: 10,
                     ),
-                    leading: Icon(
+                    leading: AppIcon(
                       e.icon,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -135,7 +137,7 @@ class _Section extends StatelessWidget {
                       e.title,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
+                    trailing: const AppIcon(Icons.chevron_right_rounded),
                     onTap: () => openPage(context, e.page),
                   ),
                 ),

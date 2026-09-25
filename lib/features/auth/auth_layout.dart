@@ -1,3 +1,5 @@
+import '../../core/design/apple_chrome.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/widgets/app_logo.dart';
@@ -13,10 +15,12 @@ class AuthLayout extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
-          const AppLogo(),
-          const SizedBox(height: 24),
-          Text(title, style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: 24),
+          if (appleTokensOf(context) == null) ...[
+            const AppLogo(),
+            const SizedBox(height: 24),
+            Text(title, style: Theme.of(context).textTheme.headlineLarge),
+            const SizedBox(height: 24),
+          ],
           ...children,
         ],
       ),

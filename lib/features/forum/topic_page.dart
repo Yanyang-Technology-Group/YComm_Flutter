@@ -1,6 +1,10 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design/apple_chrome.dart';
+import '../../core/design/tokens.dart';
 import '../../core/network/community_api.dart';
 import '../../core/state/session.dart';
 import '../../core/widgets/design.dart';
@@ -171,14 +175,14 @@ class _TopicPageState extends ConsumerState<TopicPage> {
       if (!mounted || !identity.matches(ref.read(sessionProvider).value)) {
         return;
       }
-      boardId = await showDialog<String>(
+      boardId = await appShowDialog<String>(
         context: context,
-        builder: (c) => SimpleDialog(
+        builder: (c) => AppSimpleDialog(
           title: const Text('移动到版块'),
           children: boards
               .where((b) => str(b['id']) != str(topic!['board_id']))
               .map(
-                (b) => SimpleDialogOption(
+                (b) => AppSimpleDialogOption(
                   onPressed: () => Navigator.pop(c, str(b['id'])),
                   child: MarkdownText(str(b['name'])),
                 ),
@@ -279,16 +283,16 @@ class _TopicPageState extends ConsumerState<TopicPage> {
 
   Future<void> confirmExit() async {
     if (sending) return;
-    final discard = await showDialog<bool>(
+    final discard = await appShowDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AppAlertDialog(
         title: const Text('放弃回复？'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, false),
             child: const Text('继续编辑'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, true),
             child: const Text('放弃内容'),
           ),
@@ -313,8 +317,8 @@ class _TopicPageState extends ConsumerState<TopicPage> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) confirmExit();
       },
-      child: Scaffold(
-        appBar: AppBar(
+      child: AppScaffold(
+        appBar: AppNavigationBar(
           title: const Text('讨论详情'),
           actions: [
             if (topic != null &&
@@ -323,7 +327,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                       ref.watch(sessionProvider).value,
                       contentAuthorId(topic!),
                     )))
-              PopupMenuButton<String>(
+              AppPopupMenuButton<String>(
                 tooltip: '管理讨论',
                 enabled: !contentActionBusy,
                 onSelected: topicAction,
@@ -344,7 +348,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   const PopupMenuItem(value: 'delete', child: Text('删除讨论')),
                 ],
               ),
-            IconButton(
+            AppIconButton(
               tooltip: '复制讨论链接',
               onPressed: topic == null
                   ? null
@@ -366,14 +370,14 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                         if (context.mounted) notice(context, e);
                       }
                     },
-              icon: const Icon(Icons.ios_share_rounded),
+              icon: const AppIcon(Icons.ios_share_rounded),
             ),
           ],
         ),
         body: SafeArea(
           bottom: false,
           child: PageWidth(
-            child: RefreshIndicator(
+            child: AppRefresh(
               onRefresh: () => load(),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -383,7 +387,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   else if (topic == null && error != null)
                     ErrorPanel(error!, () => load())
                   else if (topic != null) ...[
-                    if (busy) const LinearProgressIndicator(minHeight: 2),
+                    if (busy) const AppProgress(minHeight: 2),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
                       child: Column(
@@ -419,12 +423,24 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                         p['authorDisplayName'],
                         str(p['authorUsername'], '访客'),
                       );
+                      final apple = appleTokensOf(context) != null;
+                      final scheme = Theme.of(context).colorScheme;
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(24),
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerLowest,
+                        // Apple：平铺在分组底色上，楼与楼之间用内缩发丝线分开，
+                        // 不给每层套卡片——卡片会把长正文挤窄，也会让相邻楼层
+                        // 看起来像彼此独立的模块，而它们本是一条连续的对话。
+                        margin: EdgeInsets.only(bottom: apple ? 0 : 10),
+                        padding: EdgeInsets.fromLTRB(
+                          apple ? AppleSpacing.gutter : 24,
+                          apple ? AppleSpacing.lg : 24,
+                          apple ? AppleSpacing.gutter : 24,
+                          apple ? 0 : 24,
+                        ),
+                        decoration: apple
+                            ? null
+                            : BoxDecoration(
+                                color: scheme.surfaceContainerLowest,
+                              ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -438,7 +454,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: InkWell(
+                                  child: AppTap(
                                     onTap: p['authorUsername'] == null
                                         ? null
                                         : () => openPage(
@@ -459,9 +475,18 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                         children: [
                                           Text(
                                             author,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                            style: apple
+                                                ? AppleType.subheadline
+                                                      .copyWith(
+                                                        color: scheme.onSurface,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontFamilyFallback:
+                                                            appleFontFallback,
+                                                      )
+                                                : const TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                           ),
                                           Text(
                                             dateLabel(p['created_at']),
@@ -483,7 +508,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                       ref.watch(sessionProvider).value,
                                       contentAuthorId(p),
                                     ))
-                                  PopupMenuButton<String>(
+                                  AppPopupMenuButton<String>(
                                     tooltip: '管理回复',
                                     enabled: !contentActionBusy,
                                     onSelected: (action) =>
@@ -509,35 +534,40 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            SizedBox(height: apple ? 14 : 20),
                             if (p['reply_to_post_id'] != null) ...[
                               const SmallTag('回复讨论中的一条留言'),
                               const SizedBox(height: 12),
                             ],
                             MarkdownContent(str(p['content_md'])),
-                            const SizedBox(height: 18),
+                            SizedBox(height: apple ? 6 : 18),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TextButton.icon(
+                                AppTextButton.icon(
                                   onPressed: busyLikes.contains(str(p['id']))
                                       ? null
                                       : () => toggleLike(p),
-                                  icon: Icon(
+                                  icon: AppIcon(
                                     liked.contains(str(p['id']))
                                         ? Icons.favorite_rounded
                                         : Icons.favorite_border_rounded,
+                                    // 已赞时用系统红：点赞在 iOS 上是语义动作，
+                                    // 用品牌色会读成「另一个可点按钮」。
+                                    color: apple && liked.contains(str(p['id']))
+                                        ? const Color(0xFFFF3B30)
+                                        : null,
                                     size: 19,
                                   ),
                                   label: Text(
                                     liked.contains(str(p['id'])) ? '已赞' : '点赞',
                                   ),
                                 ),
-                                TextButton.icon(
+                                AppTextButton.icon(
                                   onPressed: topic!['is_locked'] == true
                                       ? null
                                       : () => reply(p),
-                                  icon: const Icon(
+                                  icon: const AppIcon(
                                     Icons.reply_rounded,
                                     size: 20,
                                   ),
@@ -545,6 +575,11 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                 ),
                               ],
                             ),
+                            if (apple)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 10),
+                                child: AppleSeparator(inset: 0),
+                              ),
                           ],
                         ),
                       );
@@ -554,7 +589,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     if (hasMore)
                       Padding(
                         padding: const EdgeInsets.all(24),
-                        child: OutlinedButton(
+                        child: AppOutlinedButton(
                           onPressed: more ? null : () => load(append: true),
                           child: Text(more ? '正在加载…' : '查看更多回复'),
                         ),

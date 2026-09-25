@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -55,8 +57,8 @@ class AdminPage extends StatelessWidget {
   final bool ownerOnly;
   final double maxWidth;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(
       title: Text(title),
       actions: actions
           .map(
@@ -193,7 +195,7 @@ class AdminCollectionState extends ConsumerState<AdminCollection> {
           '401',
           '403',
         ].contains((error as RequestFailure).code);
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: refresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -207,13 +209,13 @@ class AdminCollectionState extends ConsumerState<AdminCollection> {
               title: '当前无法访问',
               message: error.toString(),
               icon: Icons.lock_outline,
-              action: OutlinedButton(
+              action: AppOutlinedButton(
                 onPressed: refresh,
                 child: const Text('重新检查'),
               ),
             )
           else ...[
-            if (loading) const LinearProgressIndicator(minHeight: 2),
+            if (loading) const AppProgress(minHeight: 2),
             if (error != null)
               ErrorPanel(error!, () => load(append: failedAppend)),
             if (rows.isEmpty && error == null)
@@ -225,7 +227,7 @@ class AdminCollectionState extends ConsumerState<AdminCollection> {
             if (hasMore && error == null)
               Padding(
                 padding: const EdgeInsets.only(top: 20),
-                child: OutlinedButton(
+                child: AppOutlinedButton(
                   onPressed: loadingMore || loading
                       ? null
                       : () => load(append: true),
@@ -261,16 +263,16 @@ class AdminTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Material(
+    child: AppSurface(
       color: Theme.of(context).colorScheme.surfaceContainerLowest,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      child: ListTile(
+      child: AppListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        leading: AppIcon(icon, color: Theme.of(context).colorScheme.primary),
         title: markdownTitle
             ? MarkdownText(
                 title,
@@ -299,7 +301,7 @@ class AdminTile extends StatelessWidget {
         ),
         trailing:
             trailing ??
-            (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
+            (onTap == null ? null : const AppIcon(Icons.chevron_right_rounded)),
         onTap: onTap,
       ),
     ),
@@ -444,16 +446,16 @@ class _AdminFormState extends ConsumerState<_AdminForm> {
 
   Future<void> back() async {
     if (busy) return;
-    final discard = await showDialog<bool>(
+    final discard = await appShowDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AppAlertDialog(
         title: const Text('放弃未保存的修改？'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, false),
             child: const Text('继续编辑'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, true),
             child: const Text('放弃修改'),
           ),
@@ -494,7 +496,7 @@ class _AdminFormState extends ConsumerState<_AdminForm> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 20),
                 child: f.options != null
-                    ? DropdownButtonFormField<String>(
+                    ? AppDropdownButtonFormField<String>(
                         initialValue: f.options!.containsKey(choices[f.key])
                             ? choices[f.key]
                             : null,
@@ -522,7 +524,7 @@ class _AdminFormState extends ConsumerState<_AdminForm> {
                               }),
                         validator: (v) => v == null ? '请选择${f.label}' : null,
                       )
-                    : TextFormField(
+                    : AppTextFormField(
                         controller: controllers[f.key],
                         enabled: !busy,
                         obscureText: f.obscure,
@@ -566,7 +568,7 @@ class _AdminFormState extends ConsumerState<_AdminForm> {
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-            FilledButton(
+            AppFilledButton(
               onPressed: busy ? null : submit,
               child: Text(busy ? '正在提交…' : widget.submitLabel),
             ),
@@ -589,7 +591,7 @@ Future<bool> confirmAdminAction(
   bool danger = true,
   bool ownerOnly = false,
 }) async =>
-    await showDialog<bool>(
+    await appShowDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AdminConfirmation(
@@ -669,7 +671,7 @@ class _AdminConfirmationState extends ConsumerState<_AdminConfirmation> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: exiting || !busy,
-    child: AlertDialog(
+    child: AppAlertDialog(
       title: Text(widget.title),
       content: SingleChildScrollView(
         child: AdminGuard(
@@ -683,7 +685,7 @@ class _AdminConfirmationState extends ConsumerState<_AdminConfirmation> {
                 const SizedBox(height: 16),
                 Text('请输入 ${widget.typedConfirmation} 以确认'),
                 const SizedBox(height: 8),
-                TextField(
+                AppTextField(
                   controller: input,
                   enabled: !busy,
                   onChanged: (_) => setState(() {}),
@@ -704,11 +706,11 @@ class _AdminConfirmationState extends ConsumerState<_AdminConfirmation> {
         ),
       ),
       actions: [
-        TextButton(
+        AppTextButton(
           onPressed: busy ? null : () => Navigator.pop(context, false),
           child: const Text('取消'),
         ),
-        FilledButton(
+        AppFilledButton(
           style: widget.danger
               ? FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,

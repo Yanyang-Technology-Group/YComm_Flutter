@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -38,7 +40,7 @@ class _AdminResourcesPageState extends State<AdminResourcesPage> {
               'withdrawn': '已撤回',
               'rejected': '已驳回',
             }.entries)
-              ChoiceChip(
+              AppChoiceChip(
                 label: Text(entry.value),
                 selected: status == entry.key,
                 onSelected: (_) => setState(() => status = entry.key),
@@ -94,11 +96,11 @@ class _AdminResourceDetailState extends ConsumerState<_AdminResourceDetail> {
             ],
           ),
           const SizedBox(height: 24),
-          SelectableText(
+          AppSelectableText(
             '资源 ID：${resource['id']}\n作者 ID：${str(resource['authorId'])}\n版本：${str(resource['versionLabel'], '未提供')}\n下载次数：${resource['downloadCount'] ?? 0}\n创建时间：${str(resource['createdAt'])}',
           ),
           const SizedBox(height: 24),
-          OutlinedButton.icon(
+          AppOutlinedButton.icon(
             onPressed: () => openPage(
               context,
               ResourcePage(
@@ -112,14 +114,14 @@ class _AdminResourceDetailState extends ConsumerState<_AdminResourceDetail> {
                 },
               ),
             ),
-            icon: const Icon(Icons.open_in_new),
+            icon: const AppIcon(Icons.open_in_new),
             label: const Text('查看资源页面'),
           ),
           if (access.canWithdraw(resource['authorId']) &&
               !['withdrawn', 'deleted'].contains(resource['status'])) ...[
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.remove_circle_outline),
+            AppOutlinedButton.icon(
+              icon: const AppIcon(Icons.remove_circle_outline),
               label: const Text('撤回资源'),
               onPressed: () async {
                 final api = ref.read(communityProvider);
@@ -175,15 +177,15 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
       query: {if (action.isNotEmpty) 'action': action},
       header: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        child: TextField(
+        child: AppTextField(
           controller: search,
           decoration: InputDecoration(
             labelText: '按操作前缀筛选',
             hintText: '输入操作名称前缀',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
+            prefixIcon: const AppIcon(Icons.search),
+            suffixIcon: AppIconButton(
               tooltip: '筛选',
-              icon: const Icon(Icons.arrow_forward),
+              icon: const AppIcon(Icons.arrow_forward),
               onPressed: () => setState(() => action = search.text.trim()),
             ),
           ),
@@ -219,7 +221,7 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
                     style: Theme.of(c).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 24),
-                  SelectableText(prettyJson(row)),
+                  AppSelectableText(prettyJson(row)),
                 ],
               ),
             ),
@@ -277,7 +279,7 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
                 )
                 .toList()
           : jsonList(raw);
-      return RefreshIndicator(
+      return AppRefresh(
         onRefresh: reload,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -392,16 +394,16 @@ class _SettingEditorState extends ConsumerState<_SettingEditor> {
 
   Future<void> back() async {
     if (busy) return;
-    final discard = await showDialog<bool>(
+    final discard = await appShowDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AppAlertDialog(
         title: const Text('放弃未保存的设置？'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, false),
             child: const Text('继续编辑'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, true),
             child: const Text('放弃修改'),
           ),
@@ -433,7 +435,7 @@ class _SettingEditorState extends ConsumerState<_SettingEditor> {
           ),
           const SizedBox(height: 24),
           if (widget.setting['value'] is bool)
-            SwitchListTile(
+            AppSwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('启用'),
               value: boolValue,
@@ -445,7 +447,7 @@ class _SettingEditorState extends ConsumerState<_SettingEditor> {
                     }),
             )
           else
-            TextField(
+            AppTextField(
               controller: input,
               enabled: !busy,
               minLines: widget.setting['value'] is num ? 1 : 4,
@@ -469,7 +471,7 @@ class _SettingEditorState extends ConsumerState<_SettingEditor> {
               ),
             ),
           const SizedBox(height: 24),
-          FilledButton(
+          AppFilledButton(
             onPressed: busy ? null : save,
             child: Text(busy ? '正在保存…' : '保存'),
           ),

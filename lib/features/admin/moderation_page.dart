@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -98,16 +100,16 @@ class _ModerationDetailPageState extends ConsumerState<ModerationDetailPage> {
 
   Future<void> confirmExit() async {
     if (deciding) return;
-    final discard = await showDialog<bool>(
+    final discard = await appShowDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AppAlertDialog(
         title: const Text('放弃未提交的审核备注？'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, false),
             child: const Text('继续编辑'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, true),
             child: const Text('放弃备注'),
           ),
@@ -157,7 +159,7 @@ class _ModerationDetailPageState extends ConsumerState<ModerationDetailPage> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
-              SelectableText('目标：$target\n提交时间：${str(item['created_at'])}'),
+              AppSelectableText('目标：$target\n提交时间：${str(item['created_at'])}'),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(20),
@@ -183,20 +185,20 @@ class _ModerationDetailPageState extends ConsumerState<ModerationDetailPage> {
               if (canOpenTopic || canOpenResource)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: OutlinedButton.icon(
+                  child: AppOutlinedButton.icon(
                     onPressed: () => openPage(
                       context,
                       canOpenTopic
                           ? TopicPage(id: target)
                           : ResourcePage(id: target),
                     ),
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const AppIcon(Icons.open_in_new_rounded),
                     label: const Text('查看对应内容'),
                   ),
                 ),
               const SizedBox(height: 24),
               if (pending) ...[
-                TextField(
+                AppTextField(
                   controller: note,
                   maxLength: 500,
                   minLines: 3,
@@ -213,14 +215,14 @@ class _ModerationDetailPageState extends ConsumerState<ModerationDetailPage> {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    FilledButton.icon(
+                    AppFilledButton.icon(
                       onPressed: deciding ? null : () => decide('approve'),
-                      icon: const Icon(Icons.check_rounded),
+                      icon: const AppIcon(Icons.check_rounded),
                       label: const Text('通过'),
                     ),
-                    OutlinedButton.icon(
+                    AppOutlinedButton.icon(
                       onPressed: deciding ? null : () => decide('reject'),
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const AppIcon(Icons.close_rounded),
                       label: const Text('驳回'),
                     ),
                   ],
@@ -246,14 +248,14 @@ class _ReviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (detail is String) return MarkdownContent(detail);
-    if (detail is! Map) return SelectableText(prettyJson(detail));
+    if (detail is! Map) return AppSelectableText(prettyJson(detail));
     final values = Map<String, dynamic>.from(detail);
     final contentKey = ['content', 'content_md', 'contentMd', 'descriptionMd']
         .where(
           (key) => values[key] is String && (values[key] as String).isNotEmpty,
         )
         .firstOrNull;
-    if (contentKey == null) return SelectableText(prettyJson(detail));
+    if (contentKey == null) return AppSelectableText(prettyJson(detail));
     final content = values.remove(contentKey) as String;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,15 +263,15 @@ class _ReviewContent extends StatelessWidget {
         MarkdownContent(content),
         if (values.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Material(
+          AppSurface(
             color: Colors.transparent,
-            child: ExpansionTile(
+            child: AppExpansionTile(
               tilePadding: EdgeInsets.zero,
               title: const Text('附加信息'),
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: SelectableText(prettyJson(values)),
+                  child: AppSelectableText(prettyJson(values)),
                 ),
               ],
             ),

@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 // 自绘的窗口标题栏。
 //
 // 系统标题栏被隐藏后，拖动、最大化、关闭都要自己来：
@@ -57,9 +59,7 @@ class DesktopTitleBar extends StatelessWidget {
         height: desktopTitleBarHeight,
         decoration: BoxDecoration(
           color: scheme.surface,
-          border: Border(
-            bottom: BorderSide(color: scheme.outlineVariant),
-          ),
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
         ),
         child: Row(
           children: [
@@ -122,7 +122,7 @@ class _WindowButton extends StatelessWidget {
     // IconButton 自带 Material + Tooltip + 46×38 点击热区，正好是
     // Windows 窗口按钮的规范尺寸。用它而不是手搓 InkWell，省掉「按钮
     // 需要 Material 祖先」和「Tooltip 热区比按钮宽」两类问题。
-    return IconButton(
+    return AppIconButton(
       onPressed: onTap,
       tooltip: tooltip,
       style: IconButton.styleFrom(
@@ -134,7 +134,7 @@ class _WindowButton extends StatelessWidget {
             ? scheme.error
             : scheme.onSurface.withValues(alpha: .08),
       ),
-      icon: Icon(icon, size: 16),
+      icon: AppIcon(icon, size: 16),
     );
   }
 }
