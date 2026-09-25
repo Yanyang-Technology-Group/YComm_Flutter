@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,17 +56,17 @@ class _ComposePageState extends ConsumerState<ComposePage> {
 
   Future<void> leave() async {
     if (busy) return;
-    final discard = await showDialog<bool>(
+    final discard = await appShowDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => AppAlertDialog(
         title: const Text('离开编辑？'),
         content: const Text('本次尚未发布的内容将不会保存。'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, false),
             child: const Text('继续编辑'),
           ),
-          TextButton(
+          AppTextButton(
             onPressed: () => Navigator.pop(c, true),
             child: const Text('放弃内容'),
           ),
@@ -121,11 +123,11 @@ class _ComposePageState extends ConsumerState<ComposePage> {
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) leave();
     },
-    child: Scaffold(
-      appBar: AppBar(
+    child: AppScaffold(
+      appBar: AppNavigationBar(
         title: Text(reply ? '写回复' : '发起讨论'),
         actions: [
-          TextButton(
+          AppTextButton(
             onPressed: () => setState(() => preview = !preview),
             child: Text(preview ? '编辑' : '预览'),
           ),
@@ -140,7 +142,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
               padding: const EdgeInsets.all(24),
               children: [
                 if (!reply) ...[
-                  DropdownButtonFormField<String>(
+                  AppDropdownButtonFormField<String>(
                     initialValue: slug,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: '发布到版块'),
@@ -160,7 +162,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                     validator: (v) => v == null ? '请选择版块' : null,
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
+                  AppTextFormField(
                     controller: title,
                     autofocus: widget.initialContent.isNotEmpty,
                     enabled: !busy,
@@ -195,7 +197,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                     ),
                   )
                 else
-                  TextFormField(
+                  AppTextFormField(
                     controller: content,
                     enabled: !busy,
                     minLines: 10,
@@ -220,9 +222,9 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                     ),
                   ),
                 const SizedBox(height: 20),
-                FilledButton.icon(
+                AppFilledButton.icon(
                   onPressed: busy ? null : submit,
-                  icon: const Icon(Icons.arrow_upward_rounded),
+                  icon: const AppIcon(Icons.arrow_upward_rounded),
                   label: Text(
                     busy
                         ? '正在发布…'

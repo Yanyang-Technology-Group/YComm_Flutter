@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
@@ -78,8 +80,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('登录')),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(title: const Text('登录')),
     body: SafeArea(
       child: Form(
         key: form,
@@ -87,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
           child: AuthLayout(
             title: '登录',
             children: [
-              TextFormField(
+              AppTextFormField(
                 controller: login,
                 enabled: !loading,
                 autofillHints: const [AutofillHints.username],
@@ -95,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
                 autocorrect: false,
                 decoration: const InputDecoration(
                   labelText: '用户名或邮箱',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
+                  prefixIcon: AppIcon(Icons.person_outline_rounded),
                 ),
                 validator: (v) => v == null || v.trim().isEmpty
                     ? '请输入用户名或邮箱'
@@ -104,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
                     : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              AppTextFormField(
                 controller: password,
                 enabled: !loading,
                 obscureText: obscure,
@@ -115,11 +117,11 @@ class _LoginPageState extends State<LoginPage> {
                 onFieldSubmitted: (_) => submit(),
                 decoration: InputDecoration(
                   labelText: '密码',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
+                  prefixIcon: const AppIcon(Icons.lock_outline_rounded),
+                  suffixIcon: AppIconButton(
                     tooltip: obscure ? '显示密码' : '隐藏密码',
                     onPressed: () => setState(() => obscure = !obscure),
-                    icon: Icon(
+                    icon: AppIcon(
                       obscure
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
@@ -134,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
+                child: AppTextButton(
                   onPressed: loading
                       ? null
                       : () => openPage(context, const ForgotPasswordPage()),
@@ -147,14 +149,17 @@ class _LoginPageState extends State<LoginPage> {
               ),
               AuthError(error),
               const SizedBox(height: 24),
-              FilledButton(
+              AppFilledButton(
                 onPressed: loading ? null : submit,
                 child: Text(loading ? '正在登录…' : '登录'),
               ),
               const SizedBox(height: 12),
               GithubLoginButton(onPressed: loading ? null : githubLogin),
               const SizedBox(height: 12),
-              OutlinedButton(
+              AppButton(
+                kind: isApple(context)
+                    ? AppButtonKind.text
+                    : AppButtonKind.outlined,
                 onPressed: loading
                     ? null
                     : () async {

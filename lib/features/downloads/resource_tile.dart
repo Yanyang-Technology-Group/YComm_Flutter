@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/network/community_api.dart';
@@ -8,9 +10,9 @@ class ResourceTile extends StatelessWidget {
   final Json resource;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => AppSurface(
     color: Colors.transparent,
-    child: InkWell(
+    child: AppTap(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
@@ -19,7 +21,7 @@ class ResourceTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
+                AppIcon(
                   Icons.inventory_2_outlined,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -31,7 +33,7 @@ class ResourceTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded, size: 20),
+                const AppIcon(Icons.chevron_right_rounded, size: 20),
               ],
             ),
             if (str(resource['summary']).isNotEmpty) ...[
@@ -68,7 +70,7 @@ class ResourceTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            const Divider(),
+            const AppDivider(),
           ],
         ),
       ),

@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,14 +21,14 @@ class CardDirectoryPage extends ConsumerWidget {
   const CardDirectoryPage({super.key, required this.id});
   final String id;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-    appBar: AppBar(
+  Widget build(BuildContext context, WidgetRef ref) => AppScaffold(
+    appBar: AppNavigationBar(
       title: const Text('资源目录'),
       actions: [
-        IconButton(
+        AppIconButton(
           tooltip: '复制目录链接',
           onPressed: () => copyLink(context, '/downloads/card/$id'),
-          icon: const Icon(Icons.ios_share_rounded),
+          icon: const AppIcon(Icons.ios_share_rounded),
         ),
       ],
     ),
@@ -90,10 +92,10 @@ class _DirectoryViewState extends ConsumerState<DirectoryView> {
               message:
                   Uri.tryParse(str(parent?['redirectUrl']))?.host ?? '外部网站',
               icon: Icons.open_in_new_rounded,
-              action: FilledButton.icon(
+              action: AppFilledButton.icon(
                 onPressed: () =>
                     externalLink(context, str(parent?['redirectUrl'])),
-                icon: const Icon(Icons.open_in_new_rounded),
+                icon: const AppIcon(Icons.open_in_new_rounded),
                 label: const Text('打开资源'),
               ),
             ),
@@ -131,12 +133,12 @@ class _DirectoryViewState extends ConsumerState<DirectoryView> {
                 .length;
             return Column(
               children: [
-                ListTile(
+                AppListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 12,
                   ),
-                  leading: Icon(
+                  leading: AppIcon(
                     external
                         ? Icons.insert_drive_file_outlined
                         : Icons.folder_open_rounded,
@@ -150,7 +152,7 @@ class _DirectoryViewState extends ConsumerState<DirectoryView> {
                     external ? '外部资源' : '$count 个项目',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  trailing: Icon(
+                  trailing: AppIcon(
                     external
                         ? Icons.north_east_rounded
                         : Icons.chevron_right_rounded,
@@ -161,7 +163,7 @@ class _DirectoryViewState extends ConsumerState<DirectoryView> {
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Divider(),
+                  child: AppDivider(),
                 ),
               ],
             );
@@ -169,7 +171,7 @@ class _DirectoryViewState extends ConsumerState<DirectoryView> {
         ],
       );
     }
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () async {
         ref.invalidate(cardsProvider);
         try {

@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -211,14 +213,14 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(
       title: const Text('资源详情'),
       actions: [
-        IconButton(
+        AppIconButton(
           tooltip: '复制资源链接',
           onPressed: () => copyLink(context, '/downloads/${widget.id}'),
-          icon: const Icon(Icons.ios_share_rounded),
+          icon: const AppIcon(Icons.ios_share_rounded),
         ),
       ],
     ),
@@ -244,7 +246,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                       ].contains((s.error as RequestFailure).code))
                     Padding(
                       padding: const EdgeInsets.all(24),
-                      child: OutlinedButton(
+                      child: AppOutlinedButton(
                         onPressed: () async {
                           if (await requireSession(context, ref) && mounted) {
                             setState(reload);
@@ -275,7 +277,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                       color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    child: Icon(
+                    child: AppIcon(
                       Icons.inventory_2_outlined,
                       size: 42,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -309,7 +311,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                   ],
                 ),
                 const SizedBox(height: 28),
-                const Divider(),
+                const AppDivider(),
                 const SizedBox(height: 28),
                 Text('关于这个资源', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 16),
@@ -320,24 +322,24 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                 ),
                 const SizedBox(height: 32),
                 if (downloading && !withdrawn) ...[
-                  LinearProgressIndicator(value: progress),
+                  AppProgress(value: progress),
                   const SizedBox(height: 12),
                   Text(
                     progress == null
                         ? '正在连接下载…'
                         : '已下载 ${(progress! * 100).toStringAsFixed(0)}%',
                   ),
-                  TextButton(
+                  AppTextButton(
                     onPressed: () => cancel?.cancel(),
                     child: const Text('取消下载'),
                   ),
                 ],
                 if (!withdrawn) ...[
-                  FilledButton.icon(
+                  AppFilledButton.icon(
                     onPressed: downloading || extracting || withdrawing
                         ? null
                         : () => download(r),
-                    icon: const Icon(Icons.download_rounded),
+                    icon: const AppIcon(Icons.download_rounded),
                     label: Text(
                       downloading
                           ? '正在下载…'
@@ -347,7 +349,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                     ),
                   ),
                   if (r['sourceType'] != 'local')
-                    TextButton(
+                    AppTextButton(
                       onPressed: downloading || extracting || withdrawing
                           ? null
                           : () => extract(r),
@@ -360,15 +362,15 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                     icon: Icons.inventory_2_outlined,
                   ),
                 if (mayWithdraw)
-                  TextButton.icon(
+                  AppTextButton.icon(
                     onPressed: withdrawing || downloading || extracting
                         ? null
                         : () => withdraw(r),
-                    icon: const Icon(Icons.remove_circle_outline_rounded),
+                    icon: const AppIcon(Icons.remove_circle_outline_rounded),
                     label: Text(withdrawing ? '正在撤回…' : '撤回资源'),
                   ),
                 if (savedPath != null)
-                  OutlinedButton.icon(
+                  AppOutlinedButton.icon(
                     onPressed: () async {
                       try {
                         final result = await OpenFilex.open(savedPath!);
@@ -381,7 +383,7 @@ class _ResourcePageState extends ConsumerState<ResourcePage> {
                         }
                       }
                     },
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const AppIcon(Icons.open_in_new_rounded),
                     label: const Text('打开已下载文件'),
                   ),
                 const SizedBox(height: 16),

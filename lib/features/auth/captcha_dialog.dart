@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,7 +9,7 @@ import 'captcha_webview.dart';
 
 Future<String?> showCaptchaDialog(BuildContext context) {
   FocusScope.of(context).unfocus();
-  return showDialog<String>(
+  return appShowDialog<String>(
     context: context,
     barrierDismissible: false,
     builder: (_) => const CaptchaDialog(),
@@ -102,7 +104,7 @@ class _CaptchaDialogState extends State<CaptchaDialog> {
   Widget build(BuildContext context) {
     final generation = _generation;
     final scheme = Theme.of(context).colorScheme;
-    return Dialog(
+    return AppDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440, maxHeight: 460),
@@ -114,7 +116,7 @@ class _CaptchaDialogState extends State<CaptchaDialog> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.verified_user_outlined, color: scheme.primary),
+                  AppIcon(Icons.verified_user_outlined, color: scheme.primary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -143,7 +145,7 @@ class _CaptchaDialogState extends State<CaptchaDialog> {
                         ),
                       )
                     : _session == null
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: AppSpinner())
                     : KeyedSubtree(
                         key: ValueKey(_session!.uri),
                         child:
@@ -163,13 +165,13 @@ class _CaptchaDialogState extends State<CaptchaDialog> {
                 alignment: WrapAlignment.end,
                 spacing: 8,
                 children: [
-                  TextButton(
+                  AppTextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
-                  TextButton.icon(
+                  AppTextButton.icon(
                     onPressed: _starting ? null : _start,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    icon: const AppIcon(Icons.refresh_rounded, size: 18),
                     label: const Text('重新验证'),
                   ),
                 ],

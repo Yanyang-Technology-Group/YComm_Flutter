@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,8 +19,8 @@ class AboutPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(updateControllerProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('关于晏阳社区')),
+    return AppScaffold(
+      appBar: AppNavigationBar(title: const Text('关于晏阳社区')),
       body: SafeArea(
         child: PageWidth(
           child: ListView(
@@ -88,7 +90,7 @@ class AboutPage extends ConsumerWidget {
                   SettingsRow(
                     icon: Icons.code_rounded,
                     title: '开源许可',
-                    onTap: () => showLicensePage(
+                    onTap: () => appShowLicensePage(
                       context: context,
                       applicationName: '晏阳社区',
                       applicationVersion: appVersionLabel,

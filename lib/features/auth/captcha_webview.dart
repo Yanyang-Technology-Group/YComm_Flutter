@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -108,7 +110,7 @@ class _CaptchaWebViewState extends State<CaptchaWebView> {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      if (_loading) const LinearProgressIndicator(minHeight: 2),
+      if (_loading) const AppProgress(minHeight: 2),
       Expanded(
         child: _controller == null
             ? const Center(child: Text('正在准备验证组件…'))

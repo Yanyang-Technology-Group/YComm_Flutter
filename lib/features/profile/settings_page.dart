@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,15 +17,15 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(themeControllerProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+    return AppScaffold(
+      appBar: AppNavigationBar(title: const Text('设置')),
       body: SafeArea(
         child: PageWidth(
           child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
               const SizedBox(height: 8),
-              const _SectionLabel('外观'),
+              const SectionLabel('外观'),
               SettingsGroup(
                 children: [
                   SettingsRow(
@@ -40,7 +42,7 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 26),
-              const _SectionLabel('开发者工具'),
+              const SectionLabel('开发者工具'),
               SettingsGroup(
                 children: [
                   SettingsRow(
@@ -58,7 +60,7 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 26),
-              const _SectionLabel('关于'),
+              const SectionLabel('关于'),
               SettingsGroup(
                 children: [
                   SettingsRow(
@@ -74,14 +76,4 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-    child: Text(text, style: Theme.of(context).textTheme.titleSmall),
-  );
 }

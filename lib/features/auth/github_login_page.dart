@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -180,19 +182,19 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(
       title: const Text('GitHub 登录'),
       actions: [
-        IconButton(
+        AppIconButton(
           tooltip: '重新授权',
           onPressed: _exchanging ? null : _start,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: const AppIcon(Icons.refresh_rounded),
         ),
       ],
-      leading: IconButton(
+      leading: AppIconButton(
         tooltip: '取消登录',
-        icon: const Icon(Icons.close_rounded),
+        icon: const AppIcon(Icons.close_rounded),
         onPressed: () => Navigator.pop(context),
       ),
     ),
@@ -203,7 +205,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
             child: Row(
               children: [
-                Icon(
+                AppIcon(
                   Icons.lock_outline_rounded,
                   size: 16,
                   color: Theme.of(context).colorScheme.primary,
@@ -218,8 +220,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
               ],
             ),
           ),
-          if (_loading || _exchanging)
-            const LinearProgressIndicator(minHeight: 2),
+          if (_loading || _exchanging) const AppProgress(minHeight: 2),
           Expanded(
             child: _error != null
                 ? Center(
@@ -228,16 +229,16 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.cloud_off_rounded, size: 40),
+                          const AppIcon(Icons.cloud_off_rounded, size: 40),
                           const SizedBox(height: 16),
                           Text(_error!, textAlign: TextAlign.center),
                           const SizedBox(height: 24),
-                          FilledButton.icon(
+                          AppFilledButton.icon(
                             onPressed: _start,
-                            icon: const Icon(Icons.refresh_rounded),
+                            icon: const AppIcon(Icons.refresh_rounded),
                             label: const Text('重新授权'),
                           ),
-                          TextButton(
+                          AppTextButton(
                             onPressed: () => Navigator.pop(context),
                             child: const Text('返回登录'),
                           ),

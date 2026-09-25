@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,7 +95,10 @@ class _ApiExplorerPageState extends ConsumerState<ApiExplorerPage> {
       final value = entry.value.text.trim();
       if (value.isEmpty) continue;
       if (resolved.contains('{${entry.key}}')) {
-        resolved = resolved.replaceAll('{${entry.key}}', Uri.encodeComponent(value));
+        resolved = resolved.replaceAll(
+          '{${entry.key}}',
+          Uri.encodeComponent(value),
+        );
       } else {
         rest[entry.key] = value;
       }
@@ -136,14 +141,14 @@ class _ApiExplorerPageState extends ConsumerState<ApiExplorerPage> {
   @override
   Widget build(BuildContext context) {
     final endpoints = filteredEndpoints;
-    return Scaffold(
-      appBar: AppBar(
+    return AppScaffold(
+      appBar: AppNavigationBar(
         title: const Text('API 浏览器'),
         actions: [
-          IconButton(
+          AppIconButton(
             tooltip: '复制响应',
             onPressed: response == null && error == null ? null : copyResult,
-            icon: const Icon(Icons.copy_rounded),
+            icon: const AppIcon(Icons.copy_rounded),
           ),
         ],
       ),
@@ -184,7 +189,7 @@ class _ApiExplorerPageState extends ConsumerState<ApiExplorerPage> {
             return Column(
               children: [
                 SizedBox(height: 280, child: list),
-                const Divider(height: 1),
+                const AppDivider(height: 1),
                 Expanded(child: detail),
               ],
             );
@@ -214,10 +219,10 @@ class _EndpointList extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
+          child: AppTextField(
             controller: search,
             decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search_rounded),
+              prefixIcon: AppIcon(Icons.search_rounded),
               hintText: '搜索 API 接口',
               border: OutlineInputBorder(),
               isDense: true,
@@ -226,7 +231,10 @@ class _EndpointList extends StatelessWidget {
         ),
         Expanded(
           child: endpoints.isEmpty
-              ? const StatePanel(title: '没有匹配的 API。', icon: Icons.search_off_rounded)
+              ? const StatePanel(
+                  title: '没有匹配的 API。',
+                  icon: Icons.search_off_rounded,
+                )
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
                   itemCount: endpoints.length,
@@ -235,12 +243,12 @@ class _EndpointList extends StatelessWidget {
                     final active =
                         endpoint.route == selected.route &&
                         endpoint.method == selected.method;
-                    return Card(
+                    return AppCard(
                       elevation: 0,
                       color: active
                           ? Theme.of(context).colorScheme.primaryContainer
                           : null,
-                      child: ListTile(
+                      child: AppListTile(
                         dense: true,
                         leading: _MethodBadge(method: endpoint.methodLabel),
                         title: Text(
@@ -294,7 +302,7 @@ class _EndpointDetail extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        Card(
+        AppCard(
           elevation: 0,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -307,16 +315,19 @@ class _EndpointDetail extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _MethodBadge(method: endpoint.methodLabel),
-                    Chip(label: Text(endpoint.group)),
+                    AppChip(label: Text(endpoint.group)),
                     if (!endpoint.runnableInExplorer)
-                      const Chip(
-                        avatar: Icon(Icons.visibility_off_outlined, size: 18),
+                      const AppChip(
+                        avatar: AppIcon(
+                          Icons.visibility_off_outlined,
+                          size: 18,
+                        ),
                         label: Text('仅供文档'),
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                SelectableText(
+                AppSelectableText(
                   endpoint.route,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
@@ -331,16 +342,15 @@ class _EndpointDetail extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   endpoint.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: colors.onSurfaceVariant),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 12),
-        Card(
+        AppCard(
           elevation: 0,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -349,12 +359,11 @@ class _EndpointDetail extends StatelessWidget {
               children: [
                 Text(
                   '在线运行',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                AppTextField(
                   controller: route,
                   decoration: const InputDecoration(
                     labelText: '路由',
@@ -366,13 +375,12 @@ class _EndpointDetail extends StatelessWidget {
                 if (endpoint.params.isEmpty)
                   Text(
                     '无参数。',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant),
                   )
                 else
                   for (final param in endpoint.params) ...[
-                    TextField(
+                    AppTextField(
                       controller: paramControllers[param.name],
                       decoration: InputDecoration(
                         labelText: '${param.name}${param.required ? ' *' : ''}',
@@ -385,7 +393,7 @@ class _EndpointDetail extends StatelessWidget {
                 OverflowBar(
                   alignment: MainAxisAlignment.end,
                   children: [
-                    FilledButton.icon(
+                    AppFilledButton.icon(
                       onPressed: running || !endpoint.runnableInExplorer
                           ? null
                           : onRun,
@@ -393,9 +401,9 @@ class _EndpointDetail extends StatelessWidget {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: AppSpinner(strokeWidth: 2),
                             )
-                          : const Icon(Icons.play_arrow_rounded),
+                          : const AppIcon(Icons.play_arrow_rounded),
                       label: Text(
                         endpoint.runnableInExplorer ? '发起请求' : '仅供文档',
                       ),
@@ -407,7 +415,7 @@ class _EndpointDetail extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Card(
+        AppCard(
           elevation: 0,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -476,17 +484,20 @@ class _ResultPanel extends StatelessWidget {
             Expanded(
               child: Text(
                 '响应',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             if (response != null)
-              Chip(label: Text('${response!.statusCode} · ${response!.elapsedMs} ms')),
-            IconButton(
+              AppChip(
+                label: Text(
+                  '${response!.statusCode} · ${response!.elapsedMs} ms',
+                ),
+              ),
+            AppIconButton(
               tooltip: '复制响应',
               onPressed: hasResult ? onCopy : null,
-              icon: const Icon(Icons.copy_rounded),
+              icon: const AppIcon(Icons.copy_rounded),
             ),
           ],
         ),
@@ -501,7 +512,7 @@ class _ResultPanel extends StatelessWidget {
             width: double.infinity,
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: SelectableText(
+              child: AppSelectableText(
                 text,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontFamily: 'monospace',

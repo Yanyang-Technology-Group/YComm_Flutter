@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
@@ -79,8 +81,8 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('创建账号')),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppNavigationBar(title: const Text('创建账号')),
     body: SafeArea(
       child: Form(
         key: form,
@@ -89,7 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
             title: done ? '注册已提交' : '注册',
             children: done
                 ? [
-                    Icon(
+                    AppIcon(
                       Icons.mark_email_read_outlined,
                       size: 64,
                       color: Theme.of(context).colorScheme.primary,
@@ -97,20 +99,20 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 16),
                     const Text('如需验证，请查收邮件。'),
                     const SizedBox(height: 24),
-                    FilledButton(
+                    AppFilledButton(
                       onPressed: () => Navigator.pop(context),
                       child: const Text('返回登录'),
                     ),
                   ]
                 : [
-                    TextFormField(
+                    AppTextFormField(
                       controller: username,
                       enabled: !loading,
                       autofillHints: const [AutofillHints.newUsername],
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: '用户名',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
+                        prefixIcon: AppIcon(Icons.person_outline_rounded),
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
                           ? '请输入用户名'
@@ -119,7 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AppTextFormField(
                       controller: email,
                       enabled: !loading,
                       autofillHints: const [AutofillHints.email],
@@ -127,7 +129,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: '邮箱',
-                        prefixIcon: Icon(Icons.mail_outline_rounded),
+                        prefixIcon: AppIcon(Icons.mail_outline_rounded),
                       ),
                       validator: (v) =>
                           v == null ||
@@ -138,7 +140,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AppTextFormField(
                       controller: password,
                       enabled: !loading,
                       obscureText: obscure,
@@ -148,11 +150,11 @@ class _RegisterPageState extends State<RegisterPage> {
                       decoration: InputDecoration(
                         labelText: '密码',
                         helperText: '8–200 个字符',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
+                        prefixIcon: const AppIcon(Icons.lock_outline_rounded),
+                        suffixIcon: AppIconButton(
                           tooltip: obscure ? '显示密码' : '隐藏密码',
                           onPressed: () => setState(() => obscure = !obscure),
-                          icon: Icon(
+                          icon: AppIcon(
                             obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
@@ -165,12 +167,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AppTextFormField(
                       controller: invite,
                       enabled: !loading,
                       decoration: const InputDecoration(
                         labelText: '邀请码（选填）',
-                        prefixIcon: Icon(Icons.confirmation_number_outlined),
+                        prefixIcon: AppIcon(Icons.confirmation_number_outlined),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -182,14 +184,14 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     AuthError(error),
                     const SizedBox(height: 24),
-                    FilledButton(
+                    AppFilledButton(
                       onPressed: loading ? null : submit,
                       child: Text(loading ? '正在创建…' : '创建账号'),
                     ),
                     const SizedBox(height: 12),
                     GithubLoginButton(onPressed: loading ? null : githubLogin),
                     const SizedBox(height: 12),
-                    TextButton(
+                    AppTextButton(
                       onPressed: loading ? null : () => Navigator.pop(context),
                       child: const Text('已有账号？返回登录'),
                     ),

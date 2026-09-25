@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,26 +53,26 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       query: {if (q.isNotEmpty) 'q': q},
       header: Padding(
         padding: const EdgeInsets.only(bottom: 20),
-        child: SearchBar(
+        child: AppSearchBar(
           elevation: const WidgetStatePropertyAll(0),
           controller: search,
           hintText: '搜索账号或昵称',
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => submitSearch(),
           trailing: [
-            IconButton(
+            AppIconButton(
               tooltip: '搜索',
               onPressed: submitSearch,
-              icon: const Icon(Icons.search_rounded),
+              icon: const AppIcon(Icons.search_rounded),
             ),
             if (q.isNotEmpty)
-              IconButton(
+              AppIconButton(
                 tooltip: '清除搜索',
                 onPressed: () {
                   search.clear();
                   submitSearch();
                 },
-                icon: const Icon(Icons.close_rounded),
+                icon: const AppIcon(Icons.close_rounded),
               ),
           ],
         ),
@@ -84,7 +86,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         icon: Icons.person_outline_rounded,
         onTap: () async {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => AdminUserDetailPage(user: user)),
+            appPageRoute(
+              context,
+              builder: (_) => AdminUserDetailPage(user: user),
+            ),
           );
           if (context.mounted) await refresh();
         },
@@ -153,7 +158,8 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
 
   Future<void> punishment(String kind) async {
     await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
+      appPageRoute(
+        context,
         builder: (_) => _PunishmentPage(
           kind: kind,
           username: str(user['username']),
@@ -320,8 +326,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+        appNotice(context, e.toString());
       }
     } finally {
       if (mounted) setState(() => badgeBusy = false);
@@ -338,7 +343,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         );
-        final valueWidget = SelectableText(str(value, '未提供'));
+        final valueWidget = AppSelectableText(str(value, '未提供'));
         if (constraints.maxWidth < 340 ||
             MediaQuery.textScalerOf(context).scale(14) > 20) {
           return Column(
@@ -381,7 +386,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
           info('使用邀请码', user['inviteCodeUsed']),
           info('注册时间', _date(user['createdAt'])),
           info('最后登录', _date(user['lastLoginAt'])),
-          const Divider(height: 40),
+          const AppDivider(height: 40),
           Text('账号处置', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           if (mute) ...[
@@ -403,40 +408,40 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
             runSpacing: 8,
             children: [
               if (mute)
-                OutlinedButton.icon(
+                AppOutlinedButton.icon(
                   onPressed: () => lift('unmute'),
-                  icon: const Icon(Icons.mic_rounded),
+                  icon: const AppIcon(Icons.mic_rounded),
                   label: const Text('解除禁言'),
                 )
               else
-                FilledButton.tonalIcon(
+                AppFilledButton.tonalIcon(
                   onPressed: () => punishment('mute'),
-                  icon: const Icon(Icons.mic_off_outlined),
+                  icon: const AppIcon(Icons.mic_off_outlined),
                   label: const Text('禁言'),
                 ),
               if (ban)
-                OutlinedButton.icon(
+                AppOutlinedButton.icon(
                   onPressed: () => lift('unban'),
-                  icon: const Icon(Icons.lock_open_rounded),
+                  icon: const AppIcon(Icons.lock_open_rounded),
                   label: const Text('解除封禁'),
                 )
               else
-                FilledButton.tonalIcon(
+                AppFilledButton.tonalIcon(
                   onPressed: self ? null : () => punishment('ban'),
-                  icon: const Icon(Icons.block_rounded),
+                  icon: const AppIcon(Icons.block_rounded),
                   label: const Text('封禁'),
                 ),
             ],
           ),
-          const Divider(height: 40),
+          const AppDivider(height: 40),
           Text('徽章', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           if (loadingBadges)
-            const LinearProgressIndicator()
+            const AppProgress()
           else if (badgeError != null)
-            OutlinedButton.icon(
+            AppOutlinedButton.icon(
               onPressed: loadBadges,
-              icon: const Icon(Icons.refresh),
+              icon: const AppIcon(Icons.refresh),
               label: Text('加载失败，重试：$badgeError'),
             )
           else if (allBadges.isEmpty)
@@ -452,7 +457,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
                       final has = assigned.any(
                         (a) => str(a['id']) == str(badge['id']),
                       );
-                      return FilterChip(
+                      return AppFilterChip(
                         label: Text(str(badge['name'], '未命名徽章')),
                         selected: has,
                         onSelected: badgeBusy
@@ -464,30 +469,30 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
               ],
             ),
           if (owner) ...[
-            const Divider(height: 40),
+            const AppDivider(height: 40),
             Text('站长操作', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
+                AppOutlinedButton.icon(
                   onPressed: role,
-                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  icon: const AppIcon(Icons.admin_panel_settings_outlined),
                   label: const Text('修改角色'),
                 ),
-                OutlinedButton.icon(
+                AppOutlinedButton.icon(
                   onPressed: resetPassword,
-                  icon: const Icon(Icons.password_rounded),
+                  icon: const AppIcon(Icons.password_rounded),
                   label: const Text('重置密码'),
                 ),
-                FilledButton.icon(
+                AppFilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.error,
                     foregroundColor: Theme.of(context).colorScheme.onError,
                   ),
                   onPressed: self ? null : deleteUser,
-                  icon: const Icon(Icons.person_remove_outlined),
+                  icon: const AppIcon(Icons.person_remove_outlined),
                   label: const Text('永久注销'),
                 ),
               ],
@@ -542,14 +547,14 @@ class _PunishmentPageState extends State<_PunishmentPage> {
 
   Future<void> chooseCustom() async {
     final now = DateTime.now();
-    final date = await showDatePicker(
+    final date = await appShowDatePicker(
       context: context,
       firstDate: now,
       lastDate: DateTime(now.year + 5),
       initialDate: custom ?? now.add(const Duration(days: 1)),
     );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(
+    final time = await appShowTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
         custom ?? now.add(const Duration(days: 1)),
@@ -581,8 +586,7 @@ class _PunishmentPageState extends State<_PunishmentPage> {
       _ => null,
     };
     if (duration == 'custom' && (until == null || !until.isAfter(now))) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请选择未来时间')));
+      appNotice(context, '请选择未来时间');
       return;
     }
     setState(() {
@@ -609,7 +613,7 @@ class _PunishmentPageState extends State<_PunishmentPage> {
         children: [
           Text('目标：@${widget.username}'),
           const SizedBox(height: 20),
-          TextFormField(
+          AppTextFormField(
             controller: reason,
             enabled: !busy,
             maxLength: 300,
@@ -622,7 +626,7 @@ class _PunishmentPageState extends State<_PunishmentPage> {
                 (v?.trim().length ?? 0) > 300 ? '原因不能超过 300 个字符' : null,
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
+          AppDropdownButtonFormField<String>(
             initialValue: duration,
             isExpanded: true,
             decoration: const InputDecoration(labelText: '期限'),
@@ -643,11 +647,11 @@ class _PunishmentPageState extends State<_PunishmentPage> {
             },
           ),
           if (duration == 'custom')
-            ListTile(
+            AppListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('结束时间'),
               subtitle: Text(custom == null ? '尚未选择' : _date(custom)),
-              trailing: const Icon(Icons.calendar_month),
+              trailing: const AppIcon(Icons.calendar_month),
               onTap: busy ? null : chooseCustom,
             ),
           if (error != null)
@@ -659,7 +663,7 @@ class _PunishmentPageState extends State<_PunishmentPage> {
               ),
             ),
           const SizedBox(height: 24),
-          FilledButton(
+          AppFilledButton(
             onPressed: busy ? null : submit,
             child: Text(
               busy ? '正在提交…' : (widget.kind == 'mute' ? '确认禁言' : '确认封禁'),

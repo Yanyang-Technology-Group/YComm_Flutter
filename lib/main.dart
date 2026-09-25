@@ -1,8 +1,15 @@
+import 'core/design/apple_app.dart';
+import 'core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/design/apple_chrome.dart';
+import 'core/design/apple_nav.dart';
+import 'core/design/apple_theme.dart';
+import 'core/design/design_style.dart';
 import 'core/network/api_client.dart';
 import 'core/network/community_api.dart';
 import 'core/network/realtime_service.dart';
@@ -35,6 +42,7 @@ class YCommApp extends ConsumerStatefulWidget {
 }
 
 class _YCommAppState extends ConsumerState<YCommApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   @override
   void initState() {
     super.initState();
@@ -47,7 +55,28 @@ class _YCommAppState extends ConsumerState<YCommApp> {
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(themeControllerProvider);
+    // 两种风格共用同一套主题色，只是呈现语言不同。
+    final apple = theme.style == DesignStyle.apple;
+    ThemeData themeFor(Brightness brightness) => apple
+        ? buildAppleTheme(theme.colour, brightness)
+        : buildTheme(theme.colour, brightness);
+    if (apple) {
+      final brightness = switch (theme.mode) {
+        ThemeModePreference.auto => MediaQuery.platformBrightnessOf(context),
+        ThemeModePreference.light => Brightness.light,
+        ThemeModePreference.dark => Brightness.dark,
+      };
+      return AppleApp(
+        navigatorKey: _navigatorKey,
+        theme: themeFor(brightness),
+        builder: (context, child) => isDesktopShell
+            ? DesktopWindowFrame(child: child)
+            : child ?? const SizedBox.shrink(),
+        home: const AppShell(),
+      );
+    }
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: '晏阳社区',
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN')],
@@ -58,8 +87,9 @@ class _YCommAppState extends ConsumerState<YCommApp> {
         ThemeModePreference.light => ThemeMode.light,
         ThemeModePreference.dark => ThemeMode.dark,
       },
-      theme: buildTheme(theme.colour, Brightness.light),
-      darkTheme: buildTheme(theme.colour, Brightness.dark),
+      theme: themeFor(Brightness.light),
+      darkTheme: themeFor(Brightness.dark),
+      // 尊重系统「减少动画」：关掉时主题切换不做插值，直接换。
       themeAnimationDuration:
           WidgetsBinding
               .instance
@@ -85,7 +115,10 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin, WindowListener {
+    with
+        WidgetsBindingObserver,
+        SingleTickerProviderStateMixin,
+        WindowListener {
   int index = 0, syncGeneration = 0;
   final visited = <int>{0};
   bool active = true;
@@ -197,8 +230,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
   /// 右下角系统通知。
   Future<void> notifyUnread(int count) async {
-    if (!isDesktopShell ||
-        !ref.read(desktopSettingsProvider).notifications) {
+    if (!isDesktopShell || !ref.read(desktopSettingsProvider).notifications) {
       return;
     }
     await showDesktopNotification(
@@ -283,24 +315,42 @@ class _AppShellState extends ConsumerState<AppShell>
       Icons.notifications_rounded,
       Icons.person_rounded,
     ];
-    Widget icon(int i, bool selected) => Badge(
+    Widget icon(int i, bool selected) => AppBadge(
       isLabelVisible: i == 2 && unread > 0,
       label: Text(unread > 99 ? '99+' : '$unread'),
-      child: Icon(selected ? selectedIcons[i] : icons[i]),
+      child: AppIcon(selected ? selectedIcons[i] : icons[i]),
     );
-    final body = FadeTransition(
-      opacity: Tween<double>(
-        begin: .5,
-        end: 1,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-      child: IndexedStack(
-        index: index,
-        children: List.generate(
-          4,
-          (i) => visited.contains(i) ? pages[i] : const SizedBox.shrink(),
-        ),
+    final stacks = IndexedStack(
+      index: index,
+      children: List.generate(
+        4,
+        (i) => visited.contains(i) ? pages[i] : const SizedBox.shrink(),
       ),
     );
+    // 高频标签切换即时显示，避免重复导航时内容移动。
+    // Material 风格沿用原来的固定时长淡入。
+    final apple = appleTokensOf(context) != null;
+    final body = apple
+        ? stacks
+        : FadeTransition(
+            opacity: Tween<double>(begin: .5, end: 1).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            ),
+            child: stacks,
+          );
+    final badgeOf = <int, String?>{
+      for (var i = 0; i < labels.length; i++)
+        i: i == 2 && unread > 0 ? (unread > 99 ? '99+' : '$unread') : null,
+    };
+    final appleItems = [
+      for (var i = 0; i < labels.length; i++)
+        AppleTabItem(
+          label: labels[i],
+          icon: icons[i],
+          selectedIcon: selectedIcons[i],
+          badge: badgeOf[i],
+        ),
+    ];
     return PopScope(
       canPop: index == 0,
       onPopInvokedWithResult: (didPop, result) {
@@ -309,24 +359,32 @@ class _AppShellState extends ConsumerState<AppShell>
       child: LayoutBuilder(
         builder: (context, box) {
           final wide = box.maxWidth >= 850;
-          final shell = Scaffold(
+          final shell = AppScaffold(
             body: wide
                 ? Row(
                     children: [
-                      NavigationRail(
-                        selectedIndex: index,
-                        onDestinationSelected: select,
-                        labelType: NavigationRailLabelType.all,
-                        destinations: List.generate(
-                          4,
-                          (i) => NavigationRailDestination(
-                            icon: icon(i, false),
-                            selectedIcon: icon(i, true),
-                            label: Text(labels[i]),
+                      if (apple)
+                        AppleSidebar(
+                          index: index,
+                          onSelect: select,
+                          items: appleItems,
+                        )
+                      else ...[
+                        NavigationRail(
+                          selectedIndex: index,
+                          onDestinationSelected: select,
+                          labelType: NavigationRailLabelType.all,
+                          destinations: List.generate(
+                            4,
+                            (i) => NavigationRailDestination(
+                              icon: icon(i, false),
+                              selectedIcon: icon(i, true),
+                              label: Text(labels[i]),
+                            ),
                           ),
                         ),
-                      ),
-                      const VerticalDivider(width: 1),
+                        const VerticalDivider(width: 1),
+                      ],
                       Expanded(child: body),
                     ],
                   )
@@ -334,6 +392,16 @@ class _AppShellState extends ConsumerState<AppShell>
             bottomNavigationBar:
                 wide || MediaQuery.viewInsetsOf(context).bottom > 0
                 ? null
+                : apple
+                // iOS 的标签栏浮在内容之上，安全区由它自己内缩处理。
+                ? SafeArea(
+                    top: false,
+                    child: AppleTabBar(
+                      index: index,
+                      onSelect: select,
+                      items: appleItems,
+                    ),
+                  )
                 : DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border(

@@ -1,3 +1,5 @@
+import '../../core/design/adaptive.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,8 +90,8 @@ class _MyPostsPageState extends ConsumerState<MyPostsPage> {
     if (session.value != null) {
       identity ??= ContentIdentity.capture(session.value);
     }
-    return Scaffold(
-      appBar: AppBar(title: const Text('我的回复')),
+    return AppScaffold(
+      appBar: AppNavigationBar(title: const Text('我的回复')),
       body: SafeArea(
         child: PageWidth(
           child: session.isLoading
@@ -114,7 +116,7 @@ class _MyPostsPageState extends ConsumerState<MyPostsPage> {
                       );
                     }
                     final posts = jsonList(snapshot.data!['posts']);
-                    return RefreshIndicator(
+                    return AppRefresh(
                       onRefresh: () async {
                         setState(reload);
                         await future;
@@ -146,10 +148,10 @@ class _MyPostsPageState extends ConsumerState<MyPostsPage> {
     final canOpen = topicId.isNotEmpty && status == 'published';
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 16, 8),
-      child: Material(
+      child: AppSurface(
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(18),
-        child: InkWell(
+        child: AppTap(
           borderRadius: BorderRadius.circular(18),
           onTap: canOpen
               ? () async {
@@ -198,7 +200,7 @@ class _MyPostsPageState extends ConsumerState<MyPostsPage> {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
+                AppPopupMenuButton<String>(
                   enabled: !busy.contains(id),
                   tooltip: '管理回复',
                   onSelected: (action) =>
