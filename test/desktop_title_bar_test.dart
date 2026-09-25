@@ -48,13 +48,76 @@ void main() {
     expect(find.byTooltip('关闭'), findsOneWidget);
   });
 
+  testWidgets('标题只有文字：无下划线、无图标，并在标题栏水平居中', (tester) async {
+    await tester.pumpWidget(_app(const DesktopTitleBar()));
+    expect(tester.takeException(), isNull);
+    // 只有文字：标题栏里不允许再出现 logo 图片。
+    expect(
+      find.descendant(
+        of: find.byType(DesktopTitleBar),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+      reason: '标题栏应只有「晏阳社区」文字',
+    );
+    // 没有下划线：文字样式必须显式关闭 text decoration。
+    final title = tester.widget<Text>(find.text('晏阳社区'));
+    expect(
+      title.style?.decoration,
+      TextDecoration.none,
+      reason: '标题文字不允许有下划线',
+    );
+    // 居中：文字中心 = 标题栏中心。
+    final barWidth = tester.getSize(find.byType(DesktopTitleBar)).width;
+    expect(
+      tester.getCenter(find.text('晏阳社区')).dx,
+      moreOrLessEquals(barWidth / 2, epsilon: 0.5),
+      reason: '标题文字应水平居中',
+    );
+  });
+
+  testWidgets('三个按钮在拖动区域之外，按下不会被窗口拖动吞掉', (tester) async {
+    await tester.pumpWidget(_app(const DesktopTitleBar()));
+    expect(tester.takeException(), isNull);
+    // 标题栏里必须存在一块“按下即拖动窗口”的拖动层，用固定 key 标记。
+    // （key 与 desktop_title_bar.dart 中的 titleBarDragAreaKey 保持一致。）
+    const dragAreaKey = ValueKey('title-bar-drag-area');
+    final dragArea = find.byKey(dragAreaKey);
+    expect(
+      dragArea,
+      findsOneWidget,
+      reason: '标题栏需要一块明确的拖动区域',
+    );
+    for (final label in ['最小化', '最大化 / 还原', '关闭']) {
+      // 三个按钮都不能被压在拖动层下面，否则按下按钮会先触发窗口拖动。
+      expect(
+        find.descendant(of: dragArea, matching: find.byTooltip(label)),
+        findsNothing,
+        reason: '$label 必须在拖动区域之外，否则按下按钮会先触发窗口拖动',
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DesktopTitleBar),
+          matching: find.byTooltip(label),
+        ),
+        findsOneWidget,
+      );
+    }
+    // 三个按钮都能正常点击（不抛异常）。
+    for (final label in ['最小化', '最大化 / 还原', '关闭']) {
+      await tester.tap(find.byTooltip(label));
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: label);
+    }
+  });
+
   testWidgets('标题栏按钮固定为 46×38，三个按钮加起来不撑破标题栏', (tester) async {
     await tester.pumpWidget(
       _app(const SizedBox(width: 360, height: 38, child: DesktopTitleBar())),
     );
     expect(tester.takeException(), isNull);
-    // 三个按钮各 46px，12px 边距 + 18px 图标 + 8px 间距 + 标题文字后仍有富余，
-    // 这里直接量 Icon 本体的 16×16 来证明按钮被正确布局。
+    // 三个按钮各 46px，标题居中后左右都还有富余，这里直接量 Icon 本体的
+    // 16×16 来证明按钮被正确布局。
     for (final tooltip in ['最小化', '最大化 / 还原', '关闭']) {
       final icon = tester.getSize(
         find.descendant(
