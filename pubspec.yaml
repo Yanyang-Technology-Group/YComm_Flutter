@@ -64,6 +64,10 @@ dependencies:
   # Linux 构建需要 libnotify-dev、libx11-dev、libxi-dev，见 release.yml。
   tray_manager: ^0.7.0
   local_notifier: ^0.1.6
+  # 开机自启动（LaunchAtLogin）：Windows 写 HKCU Run、Linux 写 autostart
+  # .desktop、macOS 写 LaunchAgent。tray_manager 0.7 已经依赖它（cnativeapi），
+  # 这里显式声明是因为我们直接用它的 API（tray_manager 只转出托盘相关符号）。
+  nativeapi: ^0.3.0
 # objective_c 9.6.1 was retracted: its hook references unreleased arm64e APIs.
 # Pin the last compatible release until the upstream fix is published.
 dependency_overrides:

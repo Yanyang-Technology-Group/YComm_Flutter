@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ycomm_client/core/window/desktop_shell.dart';
 import 'package:ycomm_client/features/shell/desktop_title_bar.dart';
 
 /// 与生产环境一致：标题栏位于 Navigator 外部。
@@ -48,17 +49,36 @@ void main() {
     expect(find.byTooltip('关闭'), findsOneWidget);
   });
 
-  testWidgets('标题只有文字：无下划线、无图标，并在标题栏水平居中', (tester) async {
+  testWidgets('左上角保留应用图标，标题水平居中且无下划线', (tester) async {
     await tester.pumpWidget(_app(const DesktopTitleBar()));
     expect(tester.takeException(), isNull);
-    // 只有文字：标题栏里不允许再出现 logo 图片。
+    // 左上角的 logo 必须在（曾经为了「纯文字标题」把它删掉过）。
+    final logo = find.descendant(
+      of: find.byType(DesktopTitleBar),
+      matching: find.byType(Image),
+    );
+    expect(logo, findsOneWidget, reason: '标题栏左上角应有应用图标');
+    final logoRect = tester.getRect(logo);
+    expect(logoRect.width, 18, reason: '图标是 18×18');
+    expect(logoRect.height, 18, reason: '图标是 18×18');
+    expect(
+      logoRect.left,
+      moreOrLessEquals(12, epsilon: 0.5),
+      reason: '图标贴着左边 12px',
+    );
+    expect(
+      logoRect.center.dy,
+      moreOrLessEquals(desktopTitleBarHeight / 2, epsilon: 0.5),
+      reason: '图标在标题栏里垂直居中',
+    );
+    // 图标要在拖动区域里，按住它也能拖窗口。
     expect(
       find.descendant(
-        of: find.byType(DesktopTitleBar),
-        matching: find.byType(Image),
+        of: find.byKey(const ValueKey('title-bar-drag-area')),
+        matching: logo,
       ),
-      findsNothing,
-      reason: '标题栏应只有「晏阳社区」文字',
+      findsOneWidget,
+      reason: '图标属于拖动区域，按住图标拖动窗口',
     );
     // 没有下划线：文字样式必须显式关闭 text decoration。
     final title = tester.widget<Text>(find.text('晏阳社区'));
@@ -67,7 +87,7 @@ void main() {
       TextDecoration.none,
       reason: '标题文字不允许有下划线',
     );
-    // 居中：文字中心 = 标题栏中心。
+    // 居中：文字中心 = 标题栏中心（图标不能把标题挤偏）。
     final barWidth = tester.getSize(find.byType(DesktopTitleBar)).width;
     expect(
       tester.getCenter(find.text('晏阳社区')).dx,

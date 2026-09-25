@@ -49,8 +49,8 @@ class DesktopTitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     // 布局分两层（Stack）：
-    //   1. 拖动层铺满整条标题栏，标题文字在其中水平居中——只有文字，
-    //      没有图标也没有下划线；
+    //   1. 拖动层铺满整条标题栏：左上角是应用图标，标题文字在其中水平居中，
+    //      两者都在拖动层里，所以按住图标也能拖窗口；没有下划线；
     //   2. 三个按钮压在拖动层之上。命中测试先落到按钮，按下按钮就不会
     //      触发 startWindowDrag。之前按钮也在拖动层里，按下时 startDragging
     //      进入系统拖拽循环吞掉 mouse-up，三个按钮全都点不动。
@@ -72,17 +72,36 @@ class DesktopTitleBar extends StatelessWidget {
               }
             },
             child: SizedBox.expand(
-              child: Center(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurface,
-                    // 显式关闭 decoration：标题就是纯文字，不允许出现下划线。
-                    decoration: TextDecoration.none,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                        // 显式关闭 decoration：标题就是纯文字，不允许出现下划线。
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
                   ),
-                ),
+                  // 左上角的应用图标：和旧版标题栏一致（18×18 的社区标志）。
+                  // 用 Align 而不是 Positioned+Center：Center 会把图标撑到整条
+                  // 标题栏的中心，跟标题文字撞在一起。
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Image.asset(
+                        'assets/ycomm_mark.png',
+                        width: 18,
+                        height: 18,
+                        semanticLabel: '晏阳社区',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

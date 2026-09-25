@@ -10,6 +10,7 @@ import 'dart:ui' show Size;
 
 import 'package:flutter/foundation.dart' show VoidCallback, debugPrint, kIsWeb;
 import 'package:local_notifier/local_notifier.dart';
+import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -162,6 +163,15 @@ Future<void> enableTray({
     addItem('退出', onExit);
 
     tray.setContextMenu(menu);
+    // 只调 setContextMenu 是不会弹菜单的：nativeapi 的默认 trigger 是 none，
+    // 必须显式告诉它「什么时候弹」。Windows/macOS 由原生在右键时弹；Linux 的
+    // 托盘菜单是桌面面板画的，面板只在 trigger=clicked 时才通过 DBusMenu 把菜单
+    // 暴露出来（Linux 上图标点击也不会回调到 Dart，OpenContextMenu() 是空实现）。
+    tray.setContextMenuTrigger(
+      Platform.isLinux
+          ? ContextMenuTrigger.clicked
+          : ContextMenuTrigger.rightClicked,
+    );
     // 左键单击托盘图标也回到窗口：Windows 上单击上报 down/up。
     tray.addListener((event) {
       if (event is TrayIconClickedEvent ||
@@ -189,6 +199,84 @@ Future<void> disableTray() async {
   _trayIcon = null;
   _trayMenu?.dispose();
   _trayMenu = null;
+}
+
+// ---- 开机自启动 ----
+
+/// 自启动注册项标识：Windows 是 HKCU\...\Run 下的值名，Linux 是
+/// `~/.config/autostart/<id>.desktop` 的文件名，macOS 是 LaunchAgent 的 label。
+/// 带命名空间是为了不跟别的程序撞名字，也方便以后改名/迁移时清理旧项。
+const launchAtLoginId = 'com.yanyang.ycomm.client';
+
+/// 系统「启动应用」列表里显示的名字（macOS/Linux 会用它）。
+const launchAtLoginName = '晏阳社区';
+
+/// 打包成 AppImage 时真实入口是 $APPIMAGE；resolvedExecutable 指向解压出来的
+/// 临时目录（每次启动路径都不同），写进自启动项会直接失效。
+String _launchAtLoginExecutable() {
+  final appImage = Platform.environment['APPIMAGE'];
+  if (appImage != null && appImage.isNotEmpty) {
+    return appImage;
+  }
+  return Platform.resolvedExecutable;
+}
+
+/// 建一个自启动句柄。每次读写都新建、用完 dispose：状态存在系统里
+/// （注册表 / .desktop 文件 / plist），原生对象本身不持有状态。
+LaunchAtLogin? _createLauncher() {
+  if (!isDesktopShell) {
+    return null;
+  }
+  try {
+    if (!LaunchAtLogin.isSupported()) {
+      return null;
+    }
+    final launcher = LaunchAtLogin.createWithIdAndDisplayName(
+      launchAtLoginId,
+      launchAtLoginName,
+    );
+    // 显式指定可执行文件：默认探测在打包/AppImage 情况下不一定准。
+    launcher?.setProgram(_launchAtLoginExecutable(), const <String>[]);
+    return launcher;
+  } catch (error) {
+    debugPrint('创建开机自启动句柄失败：$error');
+    return null;
+  }
+}
+
+/// 当前平台是否支持开机自启动（桌面三平台都支持，Web/手机端没有这个概念）。
+bool isLaunchAtLoginSupported() => _createLauncher() != null;
+
+/// 系统里真实的自启动状态。读的是系统注册项，不是本地缓存。
+Future<bool> isLaunchAtLoginEnabled() async {
+  final launcher = _createLauncher();
+  if (launcher == null) {
+    return false;
+  }
+  try {
+    return launcher.isEnabled;
+  } catch (error) {
+    debugPrint('读取开机自启动状态失败：$error');
+    return false;
+  } finally {
+    launcher.dispose();
+  }
+}
+
+/// 打开 / 关闭开机自启动，返回是否真的写成功。
+Future<bool> setLaunchAtLogin(bool enabled) async {
+  final launcher = _createLauncher();
+  if (launcher == null) {
+    return false;
+  }
+  try {
+    return enabled ? launcher.enable() : launcher.disable();
+  } catch (error) {
+    debugPrint('设置开机自启动失败：$error');
+    return false;
+  } finally {
+    launcher.dispose();
+  }
 }
 
 // ---- 右下角系统通知 ----

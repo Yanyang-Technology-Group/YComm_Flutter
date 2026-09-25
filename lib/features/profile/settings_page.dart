@@ -103,6 +103,25 @@ class SettingsPage extends ConsumerWidget {
                       value: desktop.notifications,
                       onChanged: desktopControl.setNotifications,
                     ),
+                    AppSwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 4,
+                      ),
+                      secondary: AppIcon(
+                        Icons.power_settings_new_outlined,
+                        color: scheme.primary,
+                      ),
+                      title: const Text('开机自启动'),
+                      subtitle: const Text('登录系统后自动启动客户端'),
+                      value: desktop.startup,
+                      onChanged: (value) async {
+                        final ok = await desktopControl.setStartup(value);
+                        if (!ok && context.mounted) {
+                          appNotice(context, '设置开机自启动失败，可能被系统策略拦下了');
+                        }
+                      },
+                    ),
                   ],
                 ),
               ],

@@ -29,6 +29,12 @@ Future<void> enableTray({
 
 Future<void> disableTray() async {}
 
+// ---- 开机自启动（Web 上没有这个概念）----
+
+bool isLaunchAtLoginSupported() => false;
+Future<bool> isLaunchAtLoginEnabled() async => false;
+Future<bool> setLaunchAtLogin(bool enabled) async => false;
+
 Future<void> showDesktopNotification({
   required String title,
   required String body,
