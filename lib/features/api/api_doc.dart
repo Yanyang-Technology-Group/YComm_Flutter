@@ -135,6 +135,41 @@ const apiDocEndpoints = <ApiDocEndpoint>[
   ),
   ApiDocEndpoint(
     group: 'Auth',
+    route: '/auth/sessions',
+    method: ApiDocMethod.get,
+    summary: '登录设备列表',
+    description:
+        '当前账号的有效登录会话（一次登录 = 一条会话），当前会话排第一并标记 isCurrent。'
+        '仅限 Session Cookie 调用，Bearer API 密钥返回 403。',
+  ),
+  ApiDocEndpoint(
+    group: 'Auth',
+    route: '/auth/sessions/revoke-others',
+    method: ApiDocMethod.post,
+    summary: '退出其他所有设备',
+    description:
+        '一键撤销本账号除当前会话外的全部有效会话，返回 { revokedCount }。'
+        '当前会话不受影响（退出当前会话用 /auth/logout）；重复调用返回 0。',
+  ),
+  ApiDocEndpoint(
+    group: 'Auth',
+    route: '/auth/sessions/{sessionId}',
+    method: ApiDocMethod.delete,
+    summary: '退出指定设备',
+    description:
+        '撤销本账号的一条其他有效会话。目标是当前会话返回 409；不存在、已失效'
+        '或不属于当前用户返回 404。仅限 Session Cookie 调用。',
+    params: [
+      ApiDocParam(
+        name: 'sessionId',
+        description: '会话 ID（登录设备列表里的 id）',
+        required: true,
+        example: '0b0f2a4e-8b1a-4c3d-9e2f-1234567890ab',
+      ),
+    ],
+  ),
+  ApiDocEndpoint(
+    group: 'Auth',
     route: '/auth/forgot-password',
     method: ApiDocMethod.post,
     summary: '找回密码',

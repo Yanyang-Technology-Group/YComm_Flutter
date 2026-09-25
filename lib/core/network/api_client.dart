@@ -3,11 +3,30 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 import 'api_debug.dart';
 import 'api_result.dart';
 
 import 'package:path_provider/path_provider.dart';
+
+/// 原生请求的可识别 User-Agent：固定格式，仅客户端名 + 平台，不含任何个人信息。
+/// 后端只用它做「登录设备」的展示推断，不参与鉴权。
+///
+/// Flutter Web 返回 null —— 浏览器禁止脚本改写 `User-Agent` 请求头。
+String? nativeUserAgent() {
+  if (kIsWeb) return null;
+  final platform = switch (defaultTargetPlatform) {
+    TargetPlatform.android => 'Android',
+    TargetPlatform.iOS => 'iOS',
+    TargetPlatform.macOS => 'macOS',
+    TargetPlatform.windows => 'Windows',
+    TargetPlatform.linux => 'Linux',
+    TargetPlatform.fuchsia => 'Fuchsia',
+  };
+  return 'YCommFlutter/$platform';
+}
 
 class ApiClient {
   static CookieJar _sessionCookies = CookieJar();
@@ -55,6 +74,10 @@ class ApiClient {
           connectTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 12),
           validateStatus: (status) => status != null && status < 500,
+          headers: {
+            // 原生附带可识别 UA；Web 上不设置（浏览器禁止改写 User-Agent）。
+            if (nativeUserAgent() != null) 'User-Agent': nativeUserAgent(),
+          },
         ),
       ) {
     dio.interceptors.add(CookieManager(_sessionCookies));
