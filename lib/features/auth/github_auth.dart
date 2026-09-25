@@ -2,6 +2,8 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
+import '../../core/network/api_client.dart';
+
 class GithubAuthException implements Exception {
   const GithubAuthException(this.message);
   final String message;
@@ -13,12 +15,18 @@ class GithubAuthException implements Exception {
 /// state and community cookies stay in this isolated native HTTP client.
 class GithubAuth {
   GithubAuth({Dio? transport}) : _http = transport ?? Dio() {
+    final userAgent = nativeUserAgent();
     _http.options = BaseOptions(
       baseUrl: origin,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 70),
       followRedirects: false,
       validateStatus: (status) => status != null && status < 500,
+      headers: {
+        // 社区会话就是在这条原生请求里建立的：不带可识别 UA 的话，
+        // 后端的「登录设备」只能看到 Dart 默认 UA，显示不出平台。
+        'User-Agent': ?userAgent,
+      },
     );
     _http.interceptors.add(CookieManager(_cookies));
   }
