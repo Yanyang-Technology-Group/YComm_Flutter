@@ -42,6 +42,9 @@ Uri? resolveSiteUrl(String? raw) {
 Future<T?> openPage<T>(BuildContext context, Widget page) =>
     Navigator.of(context)
         .push<T>(appPageRoute<T>(context, builder: (_) => page));
+Future<T?> openTaskPage<T>(BuildContext context, Widget page) =>
+    Navigator.of(context)
+        .push<T>(appTaskRoute<T>(context, builder: (_) => page));
 void notice(BuildContext context, Object message) =>
     appNotice(context, message);
 Future<void> externalLink(BuildContext context, String link) async {

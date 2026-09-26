@@ -201,6 +201,7 @@ class _MyPostsPageState extends ConsumerState<MyPostsPage> {
                   ),
                 ),
                 AppPopupMenuButton<String>(
+                  destructiveValues: const {'delete'},
                   enabled: !busy.contains(id),
                   tooltip: '管理回复',
                   onSelected: (action) =>

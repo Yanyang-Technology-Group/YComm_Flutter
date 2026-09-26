@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' as m;
 
 import 'apple_chrome.dart';
+import 'apple_accessibility.dart';
 
 export 'apple_icons.dart';
 
@@ -17,11 +18,13 @@ class AppScaffold extends StatelessWidget {
     this.bottomNavigationBar,
     this.backgroundColor,
     this.resizeToAvoidBottomInset = true,
+    this.bottomOverlayExtent = 0,
   });
   final PreferredSizeWidget? appBar;
   final Widget? body, bottomNavigationBar;
   final Color? backgroundColor;
   final bool resizeToAvoidBottomInset;
+  final double bottomOverlayExtent;
   @override
   Widget build(BuildContext context) {
     if (!isApple(context)) {
@@ -46,12 +49,31 @@ class AppScaffold extends StatelessWidget {
       navigationBar: appBar is AppNavigationBar
           ? (appBar as AppNavigationBar).cupertino(context)
           : null,
-      child: Column(
-        children: [
-          Expanded(child: body ?? const SizedBox.shrink()),
-          ?bottomNavigationBar,
-        ],
-      ),
+      child: bottomOverlayExtent > 0 && bottomNavigationBar != null
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    padding: MediaQuery.paddingOf(context)
+                        .copyWith(bottom: bottomOverlayExtent),
+                  ),
+                  child: body ?? const SizedBox.shrink(),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: bottomNavigationBar!,
+                ),
+              ],
+            )
+          : Column(
+              children: [
+                Expanded(child: body ?? const SizedBox.shrink()),
+                ?bottomNavigationBar,
+              ],
+            ),
     );
   }
 }
@@ -67,7 +89,9 @@ class AppNavigationBar extends StatelessWidget implements PreferredSizeWidget {
       CupertinoNavigationBar(
         middle: title,
         leading: leading,
-        backgroundColor: MediaQuery.highContrastOf(context)
+        backgroundColor:
+            MediaQuery.highContrastOf(context) ||
+                AppleAccessibility.reduceTransparencyOf(context)
             ? appleTokensOf(context)!.cardBackground
             : appleTokensOf(context)!.materialColor,
         border: null,
@@ -292,7 +316,7 @@ class AppButton extends StatelessWidget {
             : kind == AppButtonKind.tonal || kind == AppButtonKind.outlined
             ? scheme.primary.withValues(alpha: .10)
             : null);
-    final border = BorderRadius.circular(10);
+    final border = BorderRadius.circular(24);
     final resolvedSize = style?.minimumSize?.resolve(states);
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -525,7 +549,7 @@ class AppBadge extends StatelessWidget {
             child,
             if (isLabelVisible)
               Positioned(
-                top: -5,
+                top: 0,
                 right: -10,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -540,10 +564,8 @@ class AppBadge extends StatelessWidget {
                             vertical: 1,
                           ),
                     child: DefaultTextStyle(
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: CupertinoColors.white,
-                      ),
+                      style: m.Theme.of(context).textTheme.labelSmall!
+                          .copyWith(fontSize: 11, color: CupertinoColors.white),
                       child: label ?? const SizedBox.shrink(),
                     ),
                   ),
@@ -601,7 +623,24 @@ class AppRefresh extends StatelessWidget {
     if (!isApple(context)) {
       return m.RefreshIndicator(onRefresh: onRefresh, child: child);
     }
-    // Existing refreshable surfaces all supply a ListView. Reuse its delegate,
+    if (child is CustomScrollView) {
+      final scroll = child as CustomScrollView;
+      return CustomScrollView(
+        key: scroll.key,
+        controller: scroll.controller,
+        primary: scroll.primary,
+        reverse: scroll.reverse,
+        shrinkWrap: scroll.shrinkWrap,
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        slivers: [
+          CupertinoSliverRefreshControl(onRefresh: onRefresh),
+          ...scroll.slivers,
+        ],
+      );
+    }
+    // Reuse the ListView delegate,
     // preserving lazy construction, storage key, controller and scroll padding.
     final list = child as ListView;
     return CustomScrollView(

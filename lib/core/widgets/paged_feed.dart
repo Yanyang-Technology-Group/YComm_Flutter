@@ -17,12 +17,22 @@ class PagedFeed extends ConsumerStatefulWidget {
     this.query = const {},
     this.header,
     this.padding = EdgeInsets.zero,
+    this.appleTitle,
+    this.appleTrailing,
+    this.appleBottom,
+    this.appleAutomaticallyImplyLeading = true,
+    this.refreshRevision = 0,
   });
   final String path, listKey, emptyTitle, emptyMessage;
   final Json query;
   final Widget Function(Json) itemBuilder;
   final Widget? header;
   final EdgeInsets padding;
+  final String? appleTitle;
+  final Widget? appleTrailing;
+  final PreferredSizeWidget? appleBottom;
+  final int refreshRevision;
+  final bool appleAutomaticallyImplyLeading;
   @override
   ConsumerState<PagedFeed> createState() => _PagedFeedState();
 }
@@ -36,6 +46,12 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
   void initState() {
     super.initState();
     load();
+  }
+
+  @override
+  void didUpdateWidget(covariant PagedFeed oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshRevision != widget.refreshRevision) load();
   }
 
   Future<void> load({bool append = false}) async {
@@ -57,7 +73,7 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
             query: {
               ...widget.query,
               'offset': append ? rows.length : 0,
-              'limit': 20,
+              'limit': !append && rows.length > 20 ? rows.length : 20,
             },
           );
       if (!mounted || ticket != generation) return;
@@ -80,69 +96,137 @@ class _PagedFeedState extends ConsumerState<PagedFeed> {
   }
 
   @override
-  Widget build(BuildContext context) => AppRefresh(
-    onRefresh: () => load(),
-    child: ListView(
-      key: PageStorageKey('${widget.path}${widget.query}'),
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: widget.padding,
-      children: [
-        ?widget.header,
-        if (loading && rows.isEmpty)
-          const LoadingRows()
-        else if (error != null && rows.isEmpty)
-          ErrorPanel(error!, () => load())
-        else ...[
-          if (loading) const AppProgress(minHeight: 2),
-          if (rows.isEmpty)
-            StatePanel(title: widget.emptyTitle, message: widget.emptyMessage),
-          if (isApple(context))
-            // Each row remains a separate sliver child. A single Column here
-            // would eagerly lay out every page and load offscreen avatars.
-            for (var i = 0; i < rows.length; i++)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  i == 0 ? 8 : 0,
-                  16,
-                  i == rows.length - 1 ? 8 : 0,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: i == 0 ? const Radius.circular(12) : Radius.zero,
-                    bottom: i == rows.length - 1
-                        ? const Radius.circular(12)
-                        : Radius.zero,
-                  ),
-                  child: ColoredBox(
-                    color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                    child: widget.itemBuilder(rows[i]),
-                  ),
-                ),
-              )
-          else
+  Widget build(BuildContext context) {
+    if (isApple(context)) return _appleFeed(context);
+    return AppRefresh(
+      onRefresh: () => load(),
+      child: ListView(
+        key: PageStorageKey('${widget.path}${widget.query}'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: widget.padding,
+        children: [
+          ?widget.header,
+          if (loading && rows.isEmpty)
+            const LoadingRows()
+          else if (error != null && rows.isEmpty)
+            ErrorPanel(error!, () => load())
+          else ...[
+            if (loading) const AppProgress(minHeight: 2),
+            if (rows.isEmpty)
+              StatePanel(
+                title: widget.emptyTitle,
+                message: widget.emptyMessage,
+              ),
             ...rows.map(widget.itemBuilder),
-          if (error != null) ErrorPanel(error!, () => load(append: lastAppend)),
-          if (error == null && rows.length < total)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: AppOutlinedButton(
-                onPressed: more ? null : () => load(append: true),
-                child: Text(more ? '正在加载…' : '继续加载 · ${rows.length} / $total'),
+            if (error != null)
+              ErrorPanel(error!, () => load(append: lastAppend)),
+            if (error == null && rows.length < total)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: AppOutlinedButton(
+                  onPressed: more ? null : () => load(append: true),
+                  child: Text(
+                    more ? '正在加载…' : '继续加载 · ${rows.length} / $total',
+                  ),
+                ),
+              ),
+            if (rows.isNotEmpty && rows.length >= total)
+              Padding(
+                padding: const EdgeInsets.all(28),
+                child: Text(
+                  '已显示全部内容',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+          const SizedBox(height: 90),
+        ],
+      ),
+    );
+  }
+
+  Widget _appleFeed(BuildContext context) {
+    final slivers = <Widget>[
+      if (widget.header != null) SliverToBoxAdapter(child: widget.header),
+      if (loading && rows.isEmpty)
+        const SliverToBoxAdapter(child: LoadingRows())
+      else if (error != null && rows.isEmpty)
+        SliverToBoxAdapter(child: ErrorPanel(error!, () => load()))
+      else ...[
+        if (loading) const SliverToBoxAdapter(child: AppProgress(minHeight: 2)),
+        if (rows.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: StatePanel(
+              title: widget.emptyTitle,
+              message: widget.emptyMessage,
+            ),
+          )
+        else
+          SliverList.builder(
+            itemCount: rows.length,
+            itemBuilder: (context, index) => widget.itemBuilder(rows[index]),
+          ),
+        if (error != null)
+          SliverToBoxAdapter(
+            child: ErrorPanel(error!, () => load(append: lastAppend)),
+          ),
+        if (error == null && rows.length < total)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: more
+                    ? const AppSpinner()
+                    : AppTextButton(
+                        onPressed: () => load(append: true),
+                        child: Text('继续加载 · ${rows.length} / $total'),
+                      ),
               ),
             ),
-          if (rows.isNotEmpty && rows.length >= total)
-            Padding(
-              padding: const EdgeInsets.all(28),
+          ),
+        if (rows.isNotEmpty && rows.length >= total)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
               child: Text(
                 '已显示全部内容',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-        ],
-        SizedBox(height: isApple(context) ? 16 : 90),
+          ),
       ],
-    ),
-  );
+    ];
+    if (widget.appleTitle != null) {
+      return AppleScrollPage(
+        key: PageStorageKey('${widget.path}${widget.query}'),
+        title: widget.appleTitle!,
+        trailing: widget.appleTrailing,
+        bottom: widget.appleBottom,
+        automaticallyImplyLeading: widget.appleAutomaticallyImplyLeading,
+        onRefresh: () => load(),
+        slivers: slivers,
+      );
+    }
+    return AppRefresh(
+      onRefresh: () => load(),
+      child: CustomScrollView(
+        key: PageStorageKey('${widget.path}${widget.query}'),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        slivers: [
+          SliverPadding(
+            padding: widget.padding,
+            sliver: SliverMainAxisGroup(slivers: slivers),
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: 24 + MediaQuery.paddingOf(context).bottom),
+          ),
+        ],
+      ),
+    );
+  }
 }

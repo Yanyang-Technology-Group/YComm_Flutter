@@ -359,6 +359,9 @@ void main() {
   });
 
   testWidgets('reduced motion dropdown and popup do not slide', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await tester.pumpWidget(
       app(
         m.MediaQuery(
@@ -394,13 +397,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(AppPopupMenuButton<String>));
     await tester.pump();
-    expect(
-      find.ancestor(
-        of: find.text('Menu item'),
-        matching: find.byType(FractionalTranslation),
-      ),
-      findsNothing,
-    );
+    // Cupertino uses fractional translations for anchor alignment even when
+    // stationary. Check screen geometry under the real iOS accessibility flag.
+    final opening = tester.getRect(find.text('Menu item'));
+    await tester.pump(const Duration(milliseconds: 100));
+    final later = tester.getRect(find.text('Menu item'));
+    expect(later, opening);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.text('Menu item')), opening);
   });
 
   testWidgets('reduced motion sheet and date picker do not slide', (

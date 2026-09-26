@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Theme, ThemeData;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'apple_accessibility.dart';
+
 /// ThemeData is shared color/typography data only. CupertinoApp owns navigation,
 /// selection menus, scrolling and page chrome in Apple mode.
 class AppleApp extends StatelessWidget {
@@ -35,22 +37,30 @@ class AppleApp extends StatelessWidget {
       scaffoldBackgroundColor: theme.scaffoldBackgroundColor,
       textTheme: CupertinoTextThemeData(
         textStyle: theme.textTheme.bodyLarge!,
+        actionTextStyle: theme.textTheme.bodyLarge!.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+        navActionTextStyle: theme.textTheme.bodyLarge!.copyWith(
+          color: theme.colorScheme.primary,
+        ),
         navTitleTextStyle: theme.textTheme.titleMedium!,
         navLargeTitleTextStyle: theme.textTheme.headlineLarge!,
       ),
     ),
     scrollBehavior: const _AppleScrollBehavior(),
-    builder: (context, child) => Theme(
-      data: theme,
-      child: DefaultTextStyle(
-        style: theme.textTheme.bodyLarge!,
-        child: IconTheme(
-          data: IconThemeData(color: theme.colorScheme.primary, size: 22),
-          child: Builder(
-            builder: (context) =>
-                builder?.call(context, child) ??
-                child ??
-                const SizedBox.shrink(),
+    builder: (context, child) => AppleAccessibility(
+      child: Theme(
+        data: theme,
+        child: DefaultTextStyle(
+          style: theme.textTheme.bodyLarge!,
+          child: IconTheme(
+            data: IconThemeData(color: theme.colorScheme.primary, size: 22),
+            child: Builder(
+              builder: (context) =>
+                  builder?.call(context, child) ??
+                  child ??
+                  const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

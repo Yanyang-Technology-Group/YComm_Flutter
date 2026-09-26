@@ -61,6 +61,8 @@ c.Widget _appleField(
           onChanged: onChanged,
           onSubmitted: onSubmitted,
           placeholder: decoration.hintText,
+          placeholderStyle: m.Theme.of(context).textTheme.bodyLarge!
+              .copyWith(color: tokens.tertiaryLabel),
           prefix: decoration.prefixIcon == null || decoration.labelText != null
               ? null
               : c.Padding(

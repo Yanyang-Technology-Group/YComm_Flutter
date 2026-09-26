@@ -180,7 +180,9 @@ Future<T?> appShowModalBottomSheet<T>({
   );
 }
 
-class AppPopupMenuButton<T> extends m.StatelessWidget {
+/// Contextual actions expand from the control that owns them. Cupertino owns
+/// the interruptible opening/closing spring and the platform Reduce Motion path.
+class AppPopupMenuButton<T> extends m.StatefulWidget {
   const AppPopupMenuButton({
     super.key,
     required this.itemBuilder,
@@ -190,71 +192,100 @@ class AppPopupMenuButton<T> extends m.StatelessWidget {
     this.icon,
     this.child,
     this.initialValue,
+    this.destructiveValues = const {},
   });
+  final Set<T> destructiveValues;
   final m.PopupMenuItemBuilder<T> itemBuilder;
   final m.PopupMenuItemSelected<T>? onSelected;
   final bool enabled;
   final String? tooltip;
   final m.Widget? icon, child;
   final T? initialValue;
+
+  @override
+  m.State<AppPopupMenuButton<T>> createState() => _AppPopupMenuButtonState<T>();
+}
+
+class _AppPopupMenuButtonState<T> extends m.State<AppPopupMenuButton<T>> {
+  final _focus = c.FocusNode();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
   @override
   m.Widget build(m.BuildContext context) {
     if (appleTokensOf(context) == null) {
       return m.PopupMenuButton<T>(
-        itemBuilder: itemBuilder,
-        onSelected: onSelected,
-        enabled: enabled,
-        tooltip: tooltip,
-        icon: icon,
-        initialValue: initialValue,
-        child: child,
+        itemBuilder: widget.itemBuilder,
+        onSelected: widget.onSelected,
+        enabled: widget.enabled,
+        tooltip: widget.tooltip,
+        icon: widget.icon,
+        initialValue: widget.initialValue,
+        child: widget.child,
       );
     }
-    return c.Semantics(
-      label: tooltip,
-      button: true,
-      enabled: enabled,
-      child: c.CupertinoButton(
-        padding: child == null ? const c.EdgeInsets.all(8) : c.EdgeInsets.zero,
-        onPressed: !enabled
-            ? null
-            : () async {
-                final entries = itemBuilder(context);
-                final value = await appShowCupertinoPopup<T>(
-                  context: context,
-                  builder: (popupContext) => c.CupertinoActionSheet(
-                    actions: [
-                      for (final entry in entries)
-                        if (entry is m.PopupMenuItem<T>)
-                          if (entry.enabled)
-                            c.CupertinoActionSheetAction(
-                              onPressed: () =>
-                                  c.Navigator.pop(popupContext, entry.value),
-                              child: entry.child ?? const c.SizedBox.shrink(),
-                            )
-                          else
-                            c.MergeSemantics(
-                              child: c.Semantics(
-                                button: true,
-                                enabled: false,
-                                child: c.CupertinoButton(
-                                  onPressed: null,
-                                  child:
-                                      entry.child ?? const c.SizedBox.shrink(),
-                                ),
-                              ),
-                            ),
-                    ],
-                    cancelButton: c.CupertinoActionSheetAction(
-                      onPressed: () => c.Navigator.pop(popupContext),
-                      child: const c.Text('取消'),
-                    ),
-                  ),
-                );
-                if (value != null) onSelected?.call(value);
-              },
-        child:
-            child ?? icon ?? const c.Icon(c.CupertinoIcons.ellipsis, size: 22),
+    return c.CupertinoMenuAnchor(
+      childFocusNode: _focus,
+      consumeOutsideTaps: true,
+      enableSwipe: widget.enabled,
+      constrainCrossAxis: true,
+      constraints: c.BoxConstraints(
+        minWidth: 200,
+        maxWidth: (c.MediaQuery.sizeOf(context).width - 32).clamp(
+          200,
+          280 * c.MediaQuery.textScalerOf(context).scale(1),
+        ),
+      ),
+      menuChildren: [
+        for (final entry in widget.itemBuilder(context))
+          if (entry is m.PopupMenuItem<T>)
+            c.CupertinoMenuItem(
+              isDestructiveAction: widget.destructiveValues.contains(
+                entry.value,
+              ),
+              onPressed: !entry.enabled
+                  ? null
+                  : () {
+                      entry.onTap?.call();
+                      final value = entry.value;
+                      if (value != null) widget.onSelected?.call(value);
+                    },
+              leading: entry is m.CheckedPopupMenuItem<T> && entry.checked
+                  ? const c.Icon(c.CupertinoIcons.check_mark, size: 17)
+                  : null,
+              child: c.Semantics(
+                selected: widget.initialValue != null
+                    ? entry.represents(widget.initialValue)
+                    : null,
+                child: entry.child ?? const c.SizedBox.shrink(),
+              ),
+            )
+          else if (entry is m.PopupMenuDivider)
+            const c.CupertinoMenuDivider(),
+      ],
+      builder: (context, controller, child) => c.Semantics(
+        label: widget.tooltip,
+        button: true,
+        enabled: widget.enabled,
+        child: c.CupertinoButton(
+          focusNode: _focus,
+          padding: widget.child == null
+              ? const c.EdgeInsets.all(8)
+              : c.EdgeInsets.zero,
+          onPressed: !widget.enabled
+              ? null
+              : controller.isOpen
+              ? controller.close
+              : controller.open,
+          child:
+              widget.child ??
+              widget.icon ??
+              const c.Icon(c.CupertinoIcons.ellipsis, size: 22),
+        ),
       ),
     );
   }

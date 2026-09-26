@@ -28,112 +28,123 @@ class AppearancePage extends ConsumerWidget {
             : Theme.of(context).textTheme.titleMedium,
       ),
     );
+    final children = <Widget>[
+      // 界面风格放在最前：它决定的是整套排版与动效语言，比换主题色更重。
+      section('界面风格'),
+      group(
+        DesignStyle.values.map(
+          (style) => Semantics(
+            selected: state.style == style,
+            child: AppListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 4,
+              ),
+              leading: AppIcon(
+                style == DesignStyle.apple
+                    ? Icons.apple
+                    : Icons.android_outlined,
+                color: scheme.primary,
+              ),
+              title: Text(style.label),
+              subtitle: Text(
+                style == DesignStyle.apple
+                    ? '原生控件、清晰排版与轻盈反馈'
+                    : '沿用当前 Material 3 界面',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: state.style == style
+                  ? AppIcon(Icons.check_rounded, color: scheme.primary)
+                  : null,
+              onTap: () => control.setStyle(style),
+            ),
+          ),
+        ),
+      ),
+      if (!isApple(context))
+        const Padding(
+          padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+          child: AppDivider(),
+        ),
+      section('主题色'),
+      group(
+        ThemeColour.values.map(
+          (colour) => Semantics(
+            selected: state.colour == colour,
+            child: AppListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 4,
+              ),
+              leading: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: colour.seed,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              title: Text(colour.label),
+              trailing: state.colour == colour
+                  ? AppIcon(Icons.check_rounded, color: scheme.primary)
+                  : null,
+              onTap: () => control.setColour(colour),
+            ),
+          ),
+        ),
+      ),
+      if (!isApple(context))
+        const Padding(
+          padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+          child: AppDivider(),
+        ),
+      section('显示模式'),
+      group(
+        ThemeModePreference.values.map(
+          (mode) => Semantics(
+            selected: state.mode == mode,
+            child: AppListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 4,
+              ),
+              leading: AppIcon(switch (mode) {
+                ThemeModePreference.auto => Icons.brightness_auto_outlined,
+                ThemeModePreference.light => Icons.light_mode_outlined,
+                ThemeModePreference.dark => Icons.dark_mode_outlined,
+              }, color: scheme.primary),
+              title: Text(switch (mode) {
+                ThemeModePreference.auto => '跟随系统',
+                ThemeModePreference.light => '浅色模式',
+                ThemeModePreference.dark => '深色模式',
+              }),
+              trailing: state.mode == mode
+                  ? AppIcon(Icons.check_rounded, color: scheme.primary)
+                  : null,
+              onTap: () => control.setMode(mode),
+            ),
+          ),
+        ),
+      ),
+    ];
+    if (isApple(context)) {
+      final page = AppleScrollPage(
+        title: '外观与主题',
+        grouped: true,
+        slivers: [
+          SliverList.list(children: children),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      );
+      return AppScaffold(body: page);
+    }
     return AppScaffold(
       appBar: AppNavigationBar(title: const Text('外观与主题')),
       body: SafeArea(
         child: PageWidth(
           child: ListView(
-            padding: const EdgeInsets.only(bottom: 24),
-            children: [
-              // 界面风格放在最前：它决定的是整套排版与动效语言，比换主题色更重。
-              section('界面风格'),
-              group(
-                DesignStyle.values.map(
-                  (style) => Semantics(
-                    selected: state.style == style,
-                    child: AppListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 4,
-                      ),
-                      leading: AppIcon(
-                        style == DesignStyle.apple
-                            ? Icons.apple
-                            : Icons.android_outlined,
-                        color: scheme.primary,
-                      ),
-                      title: Text(style.label),
-                      subtitle: Text(
-                        style == DesignStyle.apple
-                            ? '原生控件、清晰排版与轻盈反馈'
-                            : '沿用当前 Material 3 界面',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      trailing: state.style == style
-                          ? AppIcon(Icons.check_rounded, color: scheme.primary)
-                          : null,
-                      onTap: () => control.setStyle(style),
-                    ),
-                  ),
-                ),
-              ),
-              if (!isApple(context))
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
-                  child: AppDivider(),
-                ),
-              section('主题色'),
-              group(
-                ThemeColour.values.map(
-                  (colour) => Semantics(
-                    selected: state.colour == colour,
-                    child: AppListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 4,
-                      ),
-                      leading: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: colour.seed,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      title: Text(colour.label),
-                      trailing: state.colour == colour
-                          ? AppIcon(Icons.check_rounded, color: scheme.primary)
-                          : null,
-                      onTap: () => control.setColour(colour),
-                    ),
-                  ),
-                ),
-              ),
-              if (!isApple(context))
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
-                  child: AppDivider(),
-                ),
-              section('显示模式'),
-              group(
-                ThemeModePreference.values.map(
-                  (mode) => Semantics(
-                    selected: state.mode == mode,
-                    child: AppListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 4,
-                      ),
-                      leading: AppIcon(switch (mode) {
-                        ThemeModePreference.auto =>
-                          Icons.brightness_auto_outlined,
-                        ThemeModePreference.light => Icons.light_mode_outlined,
-                        ThemeModePreference.dark => Icons.dark_mode_outlined,
-                      }, color: scheme.primary),
-                      title: Text(switch (mode) {
-                        ThemeModePreference.auto => '跟随系统',
-                        ThemeModePreference.light => '浅色模式',
-                        ThemeModePreference.dark => '深色模式',
-                      }),
-                      trailing: state.mode == mode
-                          ? AppIcon(Icons.check_rounded, color: scheme.primary)
-                          : null,
-                      onTap: () => control.setMode(mode),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            padding: const EdgeInsets.only(bottom: 32),
+            children: children,
           ),
         ),
       ),

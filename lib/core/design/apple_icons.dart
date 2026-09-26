@@ -90,6 +90,7 @@ final _appleIcons = <IconData, IconData>{
   m.Icons.person_remove_outlined: CupertinoIcons.person_badge_minus,
   m.Icons.person_rounded: CupertinoIcons.person_fill,
   m.Icons.play_arrow_rounded: CupertinoIcons.play_fill,
+  m.Icons.power_settings_new_outlined: CupertinoIcons.power,
   m.Icons.public_rounded: CupertinoIcons.globe,
   m.Icons.refresh: CupertinoIcons.arrow_clockwise,
   m.Icons.refresh_rounded: CupertinoIcons.arrow_clockwise,

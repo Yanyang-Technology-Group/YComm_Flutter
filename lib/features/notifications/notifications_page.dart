@@ -129,6 +129,79 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       0,
       (sum, n) => sum + ((n['unreadCount'] as num?)?.toInt() ?? 0),
     );
+    if (isApple(context)) {
+      final items = (feed.value ?? <Json>[])
+          .where(
+            (item) => !unreadOnly || (item['unreadCount'] as num? ?? 0) > 0,
+          )
+          .toList();
+      return AppleScrollPage(
+        title: '消息',
+        trailing: session.value == null
+            ? null
+            : AppIconButton(
+                tooltip: '全部标记为已读',
+                onPressed: marking || unread == 0 ? null : () => mark(['*']),
+                icon: const AppIcon(Icons.done_all_rounded),
+              ),
+        onRefresh: () => ref.read(notificationsProvider.notifier).refresh(),
+        slivers: [
+          if (session.value == null)
+            SliverToBoxAdapter(
+              child: StatePanel(
+                title: '登录后查看消息',
+                icon: Icons.mark_chat_unread_outlined,
+                action: AppFilledButton(
+                  onPressed: () => requireSession(context, ref),
+                  child: const Text('登录查看'),
+                ),
+              ),
+            )
+          else ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: AppSegmentedButton<bool>(
+                  segments: [
+                    const ButtonSegment(value: false, label: Text('全部消息')),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('未读${unread > 0 ? ' · $unread' : ''}'),
+                    ),
+                  ],
+                  selected: {unreadOnly},
+                  onSelectionChanged: (value) =>
+                      setState(() => unreadOnly = value.first),
+                ),
+              ),
+            ),
+            if (feed.isLoading)
+              const SliverToBoxAdapter(child: LoadingRows())
+            else if (feed.hasError)
+              SliverToBoxAdapter(
+                child: ErrorPanel(
+                  feed.error!,
+                  () => ref.read(notificationsProvider.notifier).refresh(),
+                ),
+              )
+            else if (items.isEmpty)
+              SliverToBoxAdapter(
+                child: StatePanel(
+                  title: unreadOnly ? '暂无未读消息' : '暂无消息',
+                  icon: Icons.done_all_rounded,
+                ),
+              )
+            else
+              SliverList.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) =>
+                    _inboxRow(context, items[index]),
+              ),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      );
+    }
     return SafeArea(
       bottom: false,
       child: PageWidth(
@@ -301,6 +374,101 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               const SizedBox(height: 24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inboxRow(BuildContext context, Json item) {
+    final fresh = (item['unreadCount'] as num? ?? 0) > 0;
+    final actor = jsonList(item['actors']).firstOrNull;
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: fresh ? '未读消息' : '已读消息',
+      child: AppTap(
+        onTap: marking ? null : () => visit(item),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      UserAvatar(
+                        actor == null
+                            ? '晏'
+                            : str(actor['displayName'], str(actor['username'])),
+                        username: actor?['username'] as String?,
+                        size: 40,
+                      ),
+                      if (fresh)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        MarkdownText(
+                          str(item['title']),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: fresh
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                        if (str(item['body']).isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          MarkdownText(
+                            str(item['body']),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.35,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(
+                          dateLabel(item['latestAt']),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: AppIcon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 72),
+              child: AppDivider(),
+            ),
+          ],
         ),
       ),
     );

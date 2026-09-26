@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'apple_theme.dart';
+import 'apple_accessibility.dart';
 import 'motion.dart';
 import 'tokens.dart';
 
@@ -79,11 +80,20 @@ class TranslucentBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = appleTokensOf(context);
     if (tokens == null) return child;
-    if (MediaQuery.highContrastOf(context)) {
+    if (MediaQuery.highContrastOf(context) ||
+        AppleAccessibility.reduceTransparencyOf(context)) {
       return DecoratedBox(
         decoration: BoxDecoration(
           color: tokens.elevatedBackground,
-          border: Border(bottom: BorderSide(color: tokens.opaqueSeparator)),
+          border: switch (edge) {
+            TranslucentEdge.top => Border(
+              top: BorderSide(color: tokens.opaqueSeparator),
+            ),
+            TranslucentEdge.bottom => Border(
+              bottom: BorderSide(color: tokens.opaqueSeparator),
+            ),
+            TranslucentEdge.none => null,
+          },
         ),
         child: child,
       );

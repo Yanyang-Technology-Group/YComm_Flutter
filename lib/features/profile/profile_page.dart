@@ -27,224 +27,223 @@ class ProfilePage extends ConsumerWidget {
     final session = ref.watch(sessionProvider);
     final user = session.value;
     final apple = appleTokensOf(context) != null;
+    final children = <Widget>[
+      if (!apple) const PageIntro('我的'),
+      if (apple)
+        SettingsGroup(
+          children: [
+            AppleDisclosureRow(
+              key: const ValueKey('apple-account-row'),
+              leading: UserAvatar(
+                user == null
+                    ? '晏'
+                    : str(user['displayName'], str(user['username'])),
+                size: 56,
+                path: user?['avatarPath'] as String?,
+                username: user?['username'] as String?,
+              ),
+              title: Text(
+                user == null
+                    ? '登录 / 注册'
+                    : str(user['displayName'], str(user['username'])),
+              ),
+              detail: user == null ? null : Text('@${user['username']}'),
+              subtitle: Text(user == null ? '登录后参与讨论与分享' : '查看个人主页'),
+              onTap: () => user == null
+                  ? requireSession(context, ref)
+                  : openPage(
+                      context,
+                      UserPage(username: str(user['username'])),
+                    ),
+            ),
+            if (session.isLoading) const AppProgress(minHeight: 2),
+            if (session.hasError)
+              AppListTile(
+                title: const Text('登录状态加载失败，重试'),
+                onTap: () => ref.read(sessionProvider.notifier).refresh(),
+              ),
+          ],
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: AppSurface(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      UserAvatar(
+                        user == null
+                            ? '晏'
+                            : str(user['displayName'], str(user['username'])),
+                        size: 64,
+                        path: user?['avatarPath'] as String?,
+                        username: user?['username'] as String?,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user == null
+                                  ? '未登录'
+                                  : str(
+                                      user['displayName'],
+                                      str(user['username']),
+                                    ),
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            if (user != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                '@${user['username']}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppFilledButton.icon(
+                      onPressed: () => user == null
+                          ? requireSession(context, ref)
+                          : openPage(
+                              context,
+                              UserPage(username: str(user['username'])),
+                            ),
+                      icon: AppIcon(
+                        user == null
+                            ? Icons.login_rounded
+                            : Icons.person_outline_rounded,
+                        size: 19,
+                      ),
+                      label: Text(user == null ? '登录 / 注册' : '查看个人主页'),
+                    ),
+                  ),
+                  if (session.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: AppProgress(minHeight: 2),
+                    ),
+                  if (session.hasError)
+                    AppTextButton.icon(
+                      onPressed: () =>
+                          ref.read(sessionProvider.notifier).refresh(),
+                      icon: const AppIcon(Icons.refresh, size: 18),
+                      label: const Text('登录状态加载失败，重试'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      SizedBox(height: apple ? 24 : 26),
+      const SectionLabel('我的内容'),
+      SettingsGroup(
+        children: [
+          SettingsRow(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: '我的讨论',
+            onTap: () async {
+              if (await requireSession(context, ref) && context.mounted) {
+                openPage(context, const MyContentPage(resources: false));
+              }
+            },
+          ),
+          SettingsRow(
+            icon: Icons.reply_all_rounded,
+            title: '我的回复',
+            onTap: () async {
+              if (await requireSession(context, ref) && context.mounted) {
+                openPage(context, const MyPostsPage());
+              }
+            },
+          ),
+          SettingsRow(
+            icon: Icons.inventory_2_outlined,
+            title: '我的资源',
+            onTap: () async {
+              if (await requireSession(context, ref) && context.mounted) {
+                openPage(context, const MyContentPage(resources: true));
+              }
+            },
+          ),
+        ],
+      ),
+      if (AdminAccess(user).isStaff) ...[
+        SizedBox(height: apple ? 24 : 26),
+        const SectionLabel('社区管理'),
+        SettingsGroup(
+          children: [
+            SettingsRow(
+              icon: Icons.admin_panel_settings_outlined,
+              title: '管理中心',
+              subtitle: '内容审核与社区管理',
+              onTap: () => openPage(context, const AdminDashboardPage()),
+            ),
+          ],
+        ),
+      ],
+      SizedBox(height: apple ? 24 : 26),
+      const SectionLabel('偏好与帮助'),
+      SettingsGroup(
+        children: [
+          SettingsRow(
+            icon: Icons.settings_outlined,
+            title: '设置',
+            subtitle: '外观、开发者工具与关于',
+            onTap: () => openPage(context, const SettingsPage()),
+          ),
+        ],
+      ),
+      if (user != null)
+        if (apple) ...[
+          const SizedBox(height: 32),
+          SettingsGroup(
+            children: [
+              AppListTile(
+                onTap: () => _logout(context, ref),
+                title: Text(
+                  '退出登录',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ],
+          ),
+        ] else
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: AppOutlinedButton(
+              onPressed: () => _logout(context, ref),
+              child: const Text('退出登录'),
+            ),
+          ),
+    ];
+    if (apple) {
+      return AppleScrollPage(
+        title: '我的',
+        grouped: true,
+        slivers: [
+          SliverList.list(children: children),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      );
+    }
     return SafeArea(
       bottom: false,
       child: PageWidth(
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
-          children: [
-            const PageIntro('我的'),
-            if (apple)
-              SettingsGroup(
-                children: [
-                  AppleDisclosureRow(
-                    key: const ValueKey('apple-account-row'),
-                    leading: UserAvatar(
-                      user == null
-                          ? '晏'
-                          : str(user['displayName'], str(user['username'])),
-                      size: 56,
-                      path: user?['avatarPath'] as String?,
-                      username: user?['username'] as String?,
-                    ),
-                    title: Text(
-                      user == null
-                          ? '登录 / 注册'
-                          : str(user['displayName'], str(user['username'])),
-                    ),
-                    detail: user == null ? null : Text('@${user['username']}'),
-                    subtitle: Text(user == null ? '登录后参与讨论与分享' : '查看个人主页'),
-                    onTap: () => user == null
-                        ? requireSession(context, ref)
-                        : openPage(
-                            context,
-                            UserPage(username: str(user['username'])),
-                          ),
-                  ),
-                  if (session.isLoading) const AppProgress(minHeight: 2),
-                  if (session.hasError)
-                    AppListTile(
-                      title: const Text('登录状态加载失败，重试'),
-                      onTap: () => ref.read(sessionProvider.notifier).refresh(),
-                    ),
-                ],
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: AppSurface(
-                  color: Colors.transparent,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 12,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            UserAvatar(
-                              user == null
-                                  ? '晏'
-                                  : str(
-                                      user['displayName'],
-                                      str(user['username']),
-                                    ),
-                              size: 64,
-                              path: user?['avatarPath'] as String?,
-                              username: user?['username'] as String?,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    user == null
-                                        ? '未登录'
-                                        : str(
-                                            user['displayName'],
-                                            str(user['username']),
-                                          ),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                  if (user != null) ...[
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '@${user['username']}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: AppFilledButton.icon(
-                            onPressed: () => user == null
-                                ? requireSession(context, ref)
-                                : openPage(
-                                    context,
-                                    UserPage(username: str(user['username'])),
-                                  ),
-                            icon: AppIcon(
-                              user == null
-                                  ? Icons.login_rounded
-                                  : Icons.person_outline_rounded,
-                              size: 19,
-                            ),
-                            label: Text(user == null ? '登录 / 注册' : '查看个人主页'),
-                          ),
-                        ),
-                        if (session.isLoading)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 12),
-                            child: AppProgress(minHeight: 2),
-                          ),
-                        if (session.hasError)
-                          AppTextButton.icon(
-                            onPressed: () =>
-                                ref.read(sessionProvider.notifier).refresh(),
-                            icon: const AppIcon(Icons.refresh, size: 18),
-                            label: const Text('登录状态加载失败，重试'),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            SizedBox(height: apple ? 24 : 26),
-            const SectionLabel('我的内容'),
-            SettingsGroup(
-              children: [
-                SettingsRow(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: '我的讨论',
-                  onTap: () async {
-                    if (await requireSession(context, ref) && context.mounted) {
-                      openPage(context, const MyContentPage(resources: false));
-                    }
-                  },
-                ),
-                SettingsRow(
-                  icon: Icons.reply_all_rounded,
-                  title: '我的回复',
-                  onTap: () async {
-                    if (await requireSession(context, ref) && context.mounted) {
-                      openPage(context, const MyPostsPage());
-                    }
-                  },
-                ),
-                SettingsRow(
-                  icon: Icons.inventory_2_outlined,
-                  title: '我的资源',
-                  onTap: () async {
-                    if (await requireSession(context, ref) && context.mounted) {
-                      openPage(context, const MyContentPage(resources: true));
-                    }
-                  },
-                ),
-              ],
-            ),
-            if (AdminAccess(user).isStaff) ...[
-              SizedBox(height: apple ? 24 : 26),
-              const SectionLabel('社区管理'),
-              SettingsGroup(
-                children: [
-                  SettingsRow(
-                    icon: Icons.admin_panel_settings_outlined,
-                    title: '管理中心',
-                    subtitle: '内容审核与社区管理',
-                    onTap: () => openPage(context, const AdminDashboardPage()),
-                  ),
-                ],
-              ),
-            ],
-            SizedBox(height: apple ? 24 : 26),
-            const SectionLabel('偏好与帮助'),
-            SettingsGroup(
-              children: [
-                SettingsRow(
-                  icon: Icons.settings_outlined,
-                  title: '设置',
-                  subtitle: '外观、开发者工具与关于',
-                  onTap: () => openPage(context, const SettingsPage()),
-                ),
-              ],
-            ),
-            if (user != null)
-              if (apple) ...[
-                const SizedBox(height: 32),
-                SettingsGroup(
-                  children: [
-                    AppListTile(
-                      onTap: () => _logout(context, ref),
-                      title: Text(
-                        '退出登录',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: AppOutlinedButton(
-                    onPressed: () => _logout(context, ref),
-                    child: const Text('退出登录'),
-                  ),
-                ),
-          ],
+          children: children,
         ),
       ),
     );
@@ -438,83 +437,88 @@ class _MyContentPageState extends ConsumerState<MyContentPage> {
       .read(communityProvider)
       .get('/auth/me/${widget.resources ? 'resources' : 'topics'}');
   @override
-  Widget build(BuildContext context) => AppScaffold(
-    appBar: AppNavigationBar(title: Text(widget.resources ? '我的资源' : '我的讨论')),
-    body: SafeArea(
-      child: PageWidth(
-        child: FutureBuilder<Json>(
-          future: future,
-          builder: (c, s) {
-            if (s.connectionState != ConnectionState.done) {
-              return const LoadingRows();
-            }
-            if (s.hasError) {
-              return ListView(
-                children: [ErrorPanel(s.error!, () => setState(reload))],
-              );
-            }
-            final list = jsonList(
-              s.data![widget.resources ? 'resources' : 'topics'],
-            );
-            return AppRefresh(
-              onRefresh: () async {
-                setState(reload);
-                await future;
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                children: list.isEmpty
-                    ? [StatePanel(title: widget.resources ? '暂无资源' : '暂无讨论')]
-                    : list
-                          .map(
-                            (item) => Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (item['status'] != 'published')
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      24,
-                                      8,
-                                      24,
-                                      8,
-                                    ),
-                                    child: SmallTag(
-                                      item['status'] == 'pending'
-                                          ? '待审核'
-                                          : str(item['status']),
-                                    ),
-                                  ),
-                                widget.resources
-                                    ? ResourceTile(
-                                        item,
-                                        onTap: () async {
-                                          await openPage(
-                                            context,
-                                            ResourcePage(id: str(item['id'])),
-                                          );
-                                          if (mounted) setState(reload);
-                                        },
-                                      )
-                                    : TopicTile(
-                                        item,
-                                        onTap: () async {
-                                          await openPage(
-                                            context,
-                                            TopicPage(id: str(item['id'])),
-                                          );
-                                          if (mounted) setState(reload);
-                                        },
-                                      ),
-                              ],
+  Widget build(BuildContext context) {
+    final apple = isApple(context);
+    final title = widget.resources ? '我的资源' : '我的讨论';
+    Future<void> refresh() async {
+      setState(reload);
+      await future;
+    }
+
+    Widget content(List<Widget> children) => apple
+        ? AppleScrollPage(
+            title: title,
+            onRefresh: refresh,
+            slivers: [SliverList.list(children: children)],
+          )
+        : AppRefresh(
+            onRefresh: refresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              children: children,
+            ),
+          );
+    final body = FutureBuilder<Json>(
+      future: future,
+      builder: (c, s) {
+        if (s.connectionState != ConnectionState.done) {
+          return content([const LoadingRows()]);
+        }
+        if (s.hasError) {
+          return content([ErrorPanel(s.error!, () => setState(reload))]);
+        }
+        final list = jsonList(
+          s.data![widget.resources ? 'resources' : 'topics'],
+        );
+        return content(
+          list.isEmpty
+              ? [StatePanel(title: widget.resources ? '暂无资源' : '暂无讨论')]
+              : list
+                    .map(
+                      (item) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (item['status'] != 'published')
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                              child: SmallTag(
+                                item['status'] == 'pending'
+                                    ? '待审核'
+                                    : str(item['status']),
+                              ),
                             ),
-                          )
-                          .toList(),
-              ),
-            );
-          },
-        ),
-      ),
-    ),
-  );
+                          widget.resources
+                              ? ResourceTile(
+                                  item,
+                                  onTap: () async {
+                                    await openPage(
+                                      context,
+                                      ResourcePage(id: str(item['id'])),
+                                    );
+                                    if (mounted) setState(reload);
+                                  },
+                                )
+                              : TopicTile(
+                                  item,
+                                  onTap: () async {
+                                    await openPage(
+                                      context,
+                                      TopicPage(id: str(item['id'])),
+                                    );
+                                    if (mounted) setState(reload);
+                                  },
+                                ),
+                        ],
+                      ),
+                    )
+                    .toList(),
+        );
+      },
+    );
+    return AppScaffold(
+      appBar: apple ? null : AppNavigationBar(title: Text(title)),
+      body: apple ? body : SafeArea(child: PageWidth(child: body)),
+    );
+  }
 }
