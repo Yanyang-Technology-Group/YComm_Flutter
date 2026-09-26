@@ -26,6 +26,8 @@ import 'package:ycomm_client/features/profile/appearance_page.dart';
 import 'package:ycomm_client/features/profile/settings_page.dart';
 import 'package:ycomm_client/features/auth/login_page.dart';
 import 'package:ycomm_client/main.dart';
+import 'package:ycomm_client/features/forum/forum_page.dart';
+import 'package:ycomm_client/features/forum/topic_page.dart';
 
 class SnapshotApi extends CommunityApi {
   SnapshotApi(this.snapshot);
@@ -36,7 +38,13 @@ class SnapshotApi extends CommunityApi {
     if (path == '/auth/me') {
       if (signedIn) {
         return {
-          'user': {'id': 'u1', 'username': 'xiaobai', 'displayName': '小白'},
+          'user': {
+            'id': 'u1',
+            'username': 'xiaobai',
+            'displayName': '小白',
+            'state': 'active',
+            'role': 'member',
+          },
         };
       }
       throw const RequestFailure('请登录', 'UNAUTHENTICATED');
@@ -64,7 +72,60 @@ class SnapshotApi extends CommunityApi {
             .value['data'],
       );
     }
-    if (signedIn && path == '/notifications') return {'groups': []};
+    // Representative offline content for reading and inbox visual review.
+    if (signedIn && path == '/notifications') {
+      return {
+        'groups': [
+          {
+            'key': 'reply',
+            'title': '你的讨论有了新回复',
+            'body': '期待听到更多使用体验，欢迎继续交流。',
+            'unreadCount': 2,
+            'latestAt': '2026-09-26T02:30:00Z',
+            'actors': [
+              {'displayName': '林'},
+            ],
+          },
+          {
+            'key': 'resource',
+            'title': '资源更新',
+            'body': '你关注的资源发布了新的版本。',
+            'unreadCount': 0,
+            'latestAt': '2026-09-25T09:00:00Z',
+          },
+        ],
+      };
+    }
+    if (signedIn && path.startsWith('/forum/topics/')) {
+      return {
+        'topic': {
+          'id': path.split('/').last,
+          'title': '一起聊聊社区的使用体验',
+          'author_id': 'u1',
+          'board_id': 'b1',
+          'created_at': '2026-09-26T01:00:00Z',
+          'view_count': 128,
+        },
+        'posts': [
+          {
+            'id': 'p1',
+            'position': 1,
+            'author_id': 'u1',
+            'authorDisplayName': '小白',
+            'created_at': '2026-09-26T01:00:00Z',
+            'content_md': '希望阅读讨论时，能更自然地找到内容、参与交流。\n\n大家平时最常使用社区里的哪些功能？',
+          },
+          {
+            'id': 'p2',
+            'position': 2,
+            'authorDisplayName': '林',
+            'created_at': '2026-09-26T02:30:00Z',
+            'content_md': '我最常浏览讨论和资源。看完一条讨论返回后，能接着刚才的位置继续读，会很方便。',
+          },
+        ],
+        'likedPostIds': [],
+      };
+    }
     if (path.startsWith('/users/')) return {'profile': {}};
     final response = Json.from(snapshot[path] ?? {});
     if (response['ok'] != true) {
@@ -134,6 +195,25 @@ void main() {
             .writeAsBytesSync(png!.buffer.asUint8List());
         img.dispose();
       });
+    }
+
+    Future<void> captureMotion(String name, int frameCount) async {
+      for (var i = 0; i < frameCount; i++) {
+        await tester.pump(const Duration(milliseconds: 33));
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        await tester.runAsync(() async {
+          final img = await boundary.toImage(pixelRatio: 1);
+          final png = await img.toByteData(format: ui.ImageByteFormat.png);
+          (File(
+            'build/design-review/motion/$name-${i.toString().padLeft(2, '0')}.png',
+          )..parent.createSync(recursive: true)).writeAsBytesSync(
+            png!.buffer.asUint8List(),
+          );
+          img.dispose();
+        });
+      }
+      expect(tester.takeException(), isNull);
     }
 
     // 切到 Apple 风格。setStyle 会写 prefs，这里本来就是一次性的测试容器。
@@ -208,6 +288,30 @@ void main() {
     await capture('apple-10-profile-signed-in');
     await tester.tap(find.text('社区').last);
     await capture('apple-11-community-signed-in');
+    await tester.tap(find.byTooltip('发起讨论'));
+    await tester.pump();
+    await captureMotion('compose-open', 16);
+    await capture('apple-16-compose');
+    await tester.tap(find.text('取消'));
+    await tester.pump();
+    await captureMotion('compose-close', 16);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TopicTile).first);
+    await capture('apple-17-discussion');
+    await tester.tap(find.bySemanticsLabel('管理讨论'));
+    await tester.pump();
+    await captureMotion('actions-open', 12);
+    await capture('apple-18-context-menu');
+    await tester.tapAt(const Offset(8, 600));
+    await tester.pump();
+    await captureMotion('actions-close', 12);
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(TopicPage))).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('消息').last);
+    await capture('apple-19-inbox-signed-in');
+    await tester.tap(find.text('社区').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('apple-board-picker')));
     await capture('apple-12-board-menu');
     await tester.tapAt(const Offset(8, 600));

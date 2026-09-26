@@ -59,22 +59,22 @@ class ApplePalette {
 
   // 中性底色与清晰表面层级；品牌色只用于交互强调。
   static const white = Color(0xFFFFFFFF);
-  static const groupedBackground = Color(0xFFF5F5F7);
+  static const groupedBackground = Color(0xFFF2F2F7);
   static const label = Color(0xFF000000);
-  static const secondaryLabel = Color(0x993C3C43); // label @ 60%
-  static const tertiaryLabel = Color(0x4C3C3C43); // label @ 30%
+  static const secondaryLabel = Color(0xFF63636B);
+  static const tertiaryLabel = Color(0xFF72727A);
   static const separator = Color(0x383C3C43); // @ 22%
   static const opaqueSeparator = Color(0xFFC6C6C8);
   static const fill = Color(0x1F787880); // @ 12%
   static const secondaryFill = Color(0x29787880); // @ 16%
 
   // ---- 深色 ----
-  static const groupedBackgroundDark = Color(0xFF08090B);
+  static const groupedBackgroundDark = Color(0xFF000000);
   static const surfaceDark = Color(0xFF1C1C1E);
   static const surfaceElevatedDark = Color(0xFF2C2C2E);
   static const labelDark = Color(0xFFFFFFFF);
-  static const secondaryLabelDark = Color(0x99EBEBF5); // @ 60%
-  static const tertiaryLabelDark = Color(0x4CEBEBF5); // @ 30%
+  static const secondaryLabelDark = Color(0xFFABABB3);
+  static const tertiaryLabelDark = Color(0xFF9898A1);
   static const separatorDark = Color(0x66545458); // @ 40%
   static const opaqueSeparatorDark = Color(0xFF38383A);
   static const fillDark = Color(0x5C787880); // @ 36%

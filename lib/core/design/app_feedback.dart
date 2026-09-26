@@ -17,7 +17,11 @@ PageRoute<T> appPageRoute<T>(
     : ApplePageRoute<T>(builder: builder);
 
 class ApplePageRoute<T> extends CupertinoPageRoute<T> {
-  ApplePageRoute({required super.builder, super.settings});
+  ApplePageRoute({
+    required super.builder,
+    super.settings,
+    super.fullscreenDialog,
+  });
   @override
   Widget buildTransitions(
     BuildContext context,
@@ -28,6 +32,15 @@ class ApplePageRoute<T> extends CupertinoPageRoute<T> {
       ? FadeTransition(opacity: animation, child: child)
       : super.buildTransitions(context, animation, secondaryAnimation, child);
 }
+
+/// Creating content is a modal task with an explicit cancellation path.
+/// Cupertino's fullscreen dialog preserves the editor's PopScope protection.
+PageRoute<T> appTaskRoute<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+}) => appleTokensOf(context) == null
+    ? m.MaterialPageRoute<T>(builder: builder)
+    : ApplePageRoute<T>(builder: builder, fullscreenDialog: true);
 
 final _notices = Expando<VoidCallback>();
 void appNotice(BuildContext context, Object message) {

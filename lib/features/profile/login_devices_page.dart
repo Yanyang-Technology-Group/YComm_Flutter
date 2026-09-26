@@ -116,10 +116,7 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
       await _load();
       final count = (data['revokedCount'] as num?)?.toInt() ?? 0;
       if (mounted) {
-        notice(
-          context,
-          count > 0 ? '已退出其他 $count 个设备。' : '没有其他需要退出的设备。',
-        );
+        notice(context, count > 0 ? '已退出其他 $count 个设备。' : '没有其他需要退出的设备。');
       }
     } catch (error) {
       if (mounted) notice(context, error);
@@ -132,24 +129,49 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
   Widget build(BuildContext context) {
     final sessions = _sessions;
     return AppScaffold(
-      appBar: AppNavigationBar(title: const Text('登录设备管理')),
-      body: SafeArea(
-        child: PageWidth(
-          child: switch ((sessions, _error)) {
-            (null, null) => const LoadingRows(),
-            (null, final error?) => ErrorPanel(error, _load),
-            (final list?, _) => _SessionList(
-              sessions: list,
-              error: _error,
-              busy: _busy,
-              busyId: _busyId,
-              onRetry: _load,
-              onRevokeOne: _revokeOne,
-              onRevokeOthers: _revokeOthers,
+      appBar: isApple(context)
+          ? null
+          : AppNavigationBar(title: const Text('登录设备管理')),
+      body: isApple(context)
+          ? switch ((sessions, _error)) {
+              (null, null) => const AppleScrollPage(
+                title: '登录设备管理',
+                grouped: true,
+                slivers: [SliverToBoxAdapter(child: LoadingRows())],
+              ),
+              (null, final error?) => AppleScrollPage(
+                title: '登录设备管理',
+                grouped: true,
+                onRefresh: _load,
+                slivers: [SliverToBoxAdapter(child: ErrorPanel(error, _load))],
+              ),
+              (final list?, _) => _SessionList(
+                sessions: list,
+                error: _error,
+                busy: _busy,
+                busyId: _busyId,
+                onRetry: _load,
+                onRevokeOne: _revokeOne,
+                onRevokeOthers: _revokeOthers,
+              ),
+            }
+          : SafeArea(
+              child: PageWidth(
+                child: switch ((sessions, _error)) {
+                  (null, null) => const LoadingRows(),
+                  (null, final error?) => ErrorPanel(error, _load),
+                  (final list?, _) => _SessionList(
+                    sessions: list,
+                    error: _error,
+                    busy: _busy,
+                    busyId: _busyId,
+                    onRetry: _load,
+                    onRevokeOne: _revokeOne,
+                    onRevokeOthers: _revokeOthers,
+                  ),
+                },
+              ),
             ),
-          },
-        ),
-      ),
     );
   }
 }
@@ -177,47 +199,61 @@ class _SessionList extends StatelessWidget {
   Widget build(BuildContext context) {
     final others = sessions.where((s) => s['isCurrent'] != true).toList();
     final operating = busy || busyId != null;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      children: [
-        Text(
-          '一次登录就是一条会话（同一台设备上的不同浏览器或 App 分别列出）。'
-          '退出其他设备后，对应设备需要重新登录；当前设备请用「我的」页的「退出登录」。',
-          style: _metaStyle(context),
+    final children = <Widget>[
+      Text(
+        '一次登录就是一条会话（同一台设备上的不同浏览器或 App 分别列出）。'
+        '退出其他设备后，对应设备需要重新登录；当前设备请用「我的」页的「退出登录」。',
+        style: _metaStyle(context),
+      ),
+      if (error != null) ...[
+        const SizedBox(height: 12),
+        _InlineError(error: error!, retry: onRetry),
+      ],
+      if (others.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        AppOutlinedButton(
+          onPressed: operating ? null : () => onRevokeOthers(),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(busy ? '处理中…' : '退出所有其他设备'),
         ),
-        if (error != null) ...[
+      ],
+      const SizedBox(height: 16),
+      if (sessions.isEmpty)
+        StatePanel(
+          title: '没有有效的登录会话',
+          message: '重新登录后，设备会出现在这里。',
+          icon: Icons.devices_outlined,
+        )
+      else
+        for (final session in sessions) ...[
+          _SessionCard(
+            session: session,
+            busy: busy,
+            busyId: busyId,
+            operating: operating,
+            onRevoke: () => onRevokeOne(session),
+          ),
           const SizedBox(height: 12),
-          _InlineError(error: error!, retry: onRetry),
         ],
-        if (others.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          AppOutlinedButton(
-            onPressed: operating ? null : () => onRevokeOthers(),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(busy ? '处理中…' : '退出所有其他设备'),
+    ];
+    if (isApple(context)) {
+      return AppleScrollPage(
+        title: '登录设备管理',
+        grouped: true,
+        onRefresh: onRetry,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            sliver: SliverList.list(children: children),
           ),
         ],
-        const SizedBox(height: 16),
-        if (sessions.isEmpty)
-          StatePanel(
-            title: '没有有效的登录会话',
-            message: '重新登录后，设备会出现在这里。',
-            icon: Icons.devices_outlined,
-          )
-        else
-          for (final session in sessions) ...[
-            _SessionCard(
-              session: session,
-              busy: busy,
-              busyId: busyId,
-              operating: operating,
-              onRevoke: () => onRevokeOne(session),
-            ),
-            const SizedBox(height: 12),
-          ],
-      ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: children,
     );
   }
 }
@@ -278,21 +314,23 @@ class _SessionCard extends StatelessWidget {
           const SizedBox(height: 10),
           _MetaLine(
             label: 'IP',
-            value: str(session['ip']).trim().isEmpty ? '未知' : str(session['ip']),
+            value: str(session['ip']).trim().isEmpty
+                ? '未知'
+                : str(session['ip']),
           ),
           _MetaLine(label: '登录时间', value: _date(session['createdAt'])),
           _MetaLine(
             label: '最近活跃',
-            value: session['lastUsedAt'] == null ? '暂无记录' : _date(session['lastUsedAt']),
+            value: session['lastUsedAt'] == null
+                ? '暂无记录'
+                : _date(session['lastUsedAt']),
           ),
           _MetaLine(label: '过期时间', value: _date(session['expiresAt'])),
           if (!isCurrent) ...[
             const SizedBox(height: 12),
             AppOutlinedButton(
               onPressed: operating ? null : () => onRevoke(),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: scheme.error,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
               child: Text(busyId == id ? '处理中…' : '退出此设备'),
             ),
           ],

@@ -43,7 +43,7 @@ class _ForumPageState extends ConsumerState<ForumPage> {
     try {
       FocusScope.of(context).unfocus();
       if (!await requireSession(context, ref) || !mounted) return;
-      final result = await openPage<bool>(
+      final result = await openTaskPage<bool>(
         context,
         ComposePage(
           boards: boards,
@@ -72,130 +72,57 @@ class _ForumPageState extends ConsumerState<ForumPage> {
       onPressed: () => openPage(context, const SearchPage()),
       icon: const AppIcon(Icons.search_rounded),
     );
-    final header = apple
-        ? PageIntro('社区', action: search)
-        : Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 16, 0),
-            child: Row(
-              children: [
-                const AppLogo(),
-                const Spacer(),
-                AppIconButton(
-                  tooltip: '搜索讨论',
-                  onPressed: () => openPage(context, const SearchPage()),
-                  icon: const AppIcon(Icons.search_rounded),
-                ),
-              ],
-            ),
+    final tools = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        search,
+        AppIconButton(
+          tooltip: '发起讨论',
+          onPressed: boards.value?.isNotEmpty == true
+              ? () => compose(boards.value!)
+              : null,
+          icon: const AppIcon(Icons.edit_outlined),
+        ),
+      ],
+    );
+    Widget statePage(Widget child) => apple
+        ? AppleScrollPage(
+            title: '社区',
+            trailing: tools,
+            automaticallyImplyLeading: false,
+            slivers: [SliverToBoxAdapter(child: child)],
+          )
+        : SingleChildScrollView(child: child);
+    final body = boards.when(
+      loading: () => statePage(const LoadingRows()),
+      error: (e, s) =>
+          statePage(ErrorPanel(e, () => ref.invalidate(boardsProvider))),
+      data: (items) {
+        if (items.isEmpty) {
+          return statePage(
+            const StatePanel(title: '暂无版块', icon: Icons.forum_outlined),
           );
-    return AppScaffold(
-      body: SafeArea(
-        bottom: false,
-        child: PageWidth(
-          child: Column(
-            children: [
-              header,
-              Expanded(
-                child: boards.when(
-                  loading: () =>
-                      const SingleChildScrollView(child: LoadingRows()),
-                  error: (e, s) => SingleChildScrollView(
-                    child: ErrorPanel(e, () => ref.invalidate(boardsProvider)),
-                  ),
-                  data: (items) {
-                    if (items.isEmpty) {
-                      return const SingleChildScrollView(
-                        child: StatePanel(
-                          title: '暂无版块',
-
-                          icon: Icons.forum_outlined,
-                        ),
-                      );
-                    }
-                    final board = items.firstWhere(
-                      (e) => e['slug'] == selected,
-                      orElse: () => items.first,
-                    );
-                    final feed = PagedFeed(
-                      key: ValueKey(
-                        '${board['slug']}:$revision:${ref.watch(sessionProvider).value?['id']}',
-                      ),
-                      path:
-                          '/forum/boards/${Uri.encodeComponent(str(board['slug']))}/topics',
-                      listKey: 'topics',
-                      emptyTitle: '暂无讨论',
-                      emptyMessage: '',
-                      header: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!apple) const PageIntro('社区'),
-                          if (!apple)
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: Row(
-                                children: items
-                                    .map(
-                                      (b) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 8,
-                                        ),
-                                        child: AppChoiceChip(
-                                          label: MarkdownText(
-                                            str(b['name']),
-                                            maxLines: 1,
-                                          ),
-                                          selected: b['slug'] == board['slug'],
-                                          showCheckmark: false,
-                                          onSelected: (_) => setState(
-                                            () => selected = str(b['slug']),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              apple ? 20 : 24,
-                              apple ? 12 : 20,
-                              apple ? 20 : 24,
-                              8,
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  apple ? '讨论' : '版块讨论',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
-                                ),
-                                const Spacer(),
-                                Text(
-                                  '最近更新',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      itemBuilder: (t) => TopicTile(
-                        t,
-                        onTap: () async {
-                          await openPage(context, TopicPage(id: str(t['id'])));
-                          if (mounted) setState(() => revision++);
-                        },
-                      ),
-                    );
-                    if (!apple) return feed;
-                    return Column(
+        }
+        final board = items.firstWhere(
+          (e) => e['slug'] == selected,
+          orElse: () => items.first,
+        );
+        return PagedFeed(
+          key: ValueKey(
+            '${board['slug']}:${ref.watch(sessionProvider).value?['id']}',
+          ),
+          refreshRevision: revision,
+          appleAutomaticallyImplyLeading: false,
+          appleTitle: apple ? '社区' : null,
+          appleTrailing: apple ? tools : null,
+          appleBottom: apple
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(52),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                        Expanded(
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: AppleChoiceMenu<String>(
@@ -213,17 +140,98 @@ class _ForumPageState extends ConsumerState<ForumPage> {
                             ),
                           ),
                         ),
-                        Expanded(child: feed),
+                        const SizedBox(width: 12),
+                        Text(
+                          '最近更新',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
+                )
+              : null,
+          path:
+              '/forum/boards/${Uri.encodeComponent(str(board['slug']))}/topics',
+          listKey: 'topics',
+          emptyTitle: '暂无讨论',
+          emptyMessage: '',
+          header: apple
+              ? null
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const PageIntro('社区'),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        children: items
+                            .map(
+                              (b) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: AppChoiceChip(
+                                  label: MarkdownText(
+                                    str(b['name']),
+                                    maxLines: 1,
+                                  ),
+                                  selected: b['slug'] == board['slug'],
+                                  showCheckmark: false,
+                                  onSelected: (_) =>
+                                      setState(() => selected = str(b['slug'])),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            '版块讨论',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          Text(
+                            '最近更新',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+          itemBuilder: (t) => TopicTile(
+            t,
+            onTap: () async {
+              await openPage(context, TopicPage(id: str(t['id'])));
+              if (mounted) setState(() => revision++);
+            },
+          ),
+        );
+      },
+    );
+    return AppScaffold(
+      body: apple
+          ? body
+          : SafeArea(
+              bottom: false,
+              child: PageWidth(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 16, 0),
+                      child: Row(
+                        children: [const AppLogo(), const Spacer(), search],
+                      ),
+                    ),
+                    Expanded(child: body),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: boards.value?.isNotEmpty == true
+            ),
+      bottomNavigationBar: !apple && boards.value?.isNotEmpty == true
           ? InlineComposer(
               controller: draft,
               inputKey: const ValueKey('community-composer'),
@@ -250,11 +258,11 @@ class TopicTile extends StatelessWidget {
       str(topic['authorUsername'], '访客'),
     );
     final excerpt = preview is Map ? str(preview['contentExcerpt']) : '';
-    // Apple 风格：按下立即整行加深 + 轻微收缩，没有水波纹；
+    // 阅读列表按下立即高亮，保持文字位置稳定；
     // 行尾用内缩发丝线，不用通栏 Divider。
     if (appleTokensOf(context) != null) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PressableScale(
             onTap: onTap,
@@ -266,7 +274,7 @@ class TopicTile extends StatelessWidget {
                 AppleSpacing.gutter,
                 AppleSpacing.md,
               ),
-              child: _content(context, topic, author, excerpt, preview),
+              child: _appleContent(context, author, excerpt),
             ),
           ),
           const AppleSeparator(inset: AppleSpacing.gutter),
@@ -289,6 +297,71 @@ class TopicTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _appleContent(BuildContext context, String author, String excerpt) {
+    final scheme = Theme.of(context).colorScheme;
+    final secondary = AppleType.footnote.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (topic['is_pinned'] == true) ...[
+          Text('置顶', style: secondary),
+          const SizedBox(height: 4),
+        ],
+        MarkdownText(
+          str(topic['title']),
+          style: AppleType.headline.copyWith(color: scheme.onSurface),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            Text(author, style: secondary),
+            Text(
+              dateLabel(
+                topic['last_post_at'] ??
+                    topic['created_at'] ??
+                    topic['createdAt'],
+              ),
+              style: secondary,
+            ),
+          ],
+        ),
+        if (excerpt.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          MarkdownText(
+            excerpt,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppleType.subheadline.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 16,
+          runSpacing: 6,
+          children: [
+            if (topic.containsKey('reply_count'))
+              _metric(
+                context,
+                Icons.chat_bubble_outline_rounded,
+                '${topic['reply_count'] ?? 0} 回复',
+              ),
+            if (topic['is_locked'] == true)
+              _metric(context, Icons.lock_outline, '已锁定'),
+          ],
+        ),
+      ],
     );
   }
 

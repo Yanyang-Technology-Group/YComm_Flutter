@@ -360,6 +360,12 @@ class _AppShellState extends ConsumerState<AppShell>
         builder: (context, box) {
           final wide = box.maxWidth >= 850;
           final shell = AppScaffold(
+            bottomOverlayExtent:
+                apple && !wide && MediaQuery.viewInsetsOf(context).bottom == 0
+                ? AppleTabBar.heightOf(context) +
+                      16 +
+                      MediaQuery.paddingOf(context).bottom
+                : 0,
             body: wide
                 ? Row(
                     children: [
@@ -396,6 +402,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 // iOS 的标签栏浮在内容之上，安全区由它自己内缩处理。
                 ? SafeArea(
                     top: false,
+                    minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                     child: AppleTabBar(
                       index: index,
                       onSelect: select,

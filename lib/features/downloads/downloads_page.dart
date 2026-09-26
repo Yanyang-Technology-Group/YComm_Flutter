@@ -53,6 +53,9 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
         onSelectionChanged: (v) => setState(() => directory = v.first),
       ),
     );
+    if (isApple(context) && directory) {
+      return DirectoryView(header: modeSwitch, appleTitle: '资源');
+    }
     if (directory) {
       return SafeArea(
         bottom: false,
@@ -70,86 +73,98 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
     final categoryId = categories.value?.any((c) => c['id'] == category) == true
         ? category
         : null;
-    return SafeArea(
-      bottom: false,
-      child: PageWidth(
-        child: PagedFeed(
-          key: ValueKey(
-            '$categoryId:${ref.watch(sessionProvider).value?['id']}:$revision',
-          ),
-          path: '/downloads/resources',
-          listKey: 'resources',
-          query: {'categoryId': ?categoryId},
-          emptyTitle: '暂无资源',
-          emptyMessage: '',
-          header: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const PageIntro('资源'),
-              modeSwitch,
-              if (isApple(context))
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: AppleChoiceMenu<String>(
-                    semanticLabel: '选择资源分类',
-                    value: categoryId ?? '',
-                    choices: {
-                      '': const Text('全部资源'),
-                      for (final item in categories.value ?? <Json>[])
-                        str(item['id']): MarkdownText(str(item['name'])),
-                    },
-                    onChanged: (value) =>
-                        setState(() => category = value.isEmpty ? null : value),
+    final feed = PagedFeed(
+      key: ValueKey('$categoryId:${ref.watch(sessionProvider).value?['id']}'),
+      refreshRevision: revision,
+      appleAutomaticallyImplyLeading: false,
+      appleTitle: isApple(context) ? '资源' : null,
+      appleTrailing: isApple(context)
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: (MediaQuery.sizeOf(context).width * .45).clamp(
+                  120,
+                  220,
+                ),
+              ),
+              child: AppleChoiceMenu<String>(
+                semanticLabel: '选择资源分类',
+                value: categoryId ?? '',
+                choices: {
+                  '': const Text(
+                    '全部资源',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )
-              else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      AppChoiceChip(
-                        label: const Text('全部资源'),
-                        selected: categoryId == null,
+                  for (final item in categories.value ?? <Json>[])
+                    str(item['id']): MarkdownText(
+                      str(item['name']),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                },
+                onChanged: (value) =>
+                    setState(() => category = value.isEmpty ? null : value),
+              ),
+            )
+          : null,
+      path: '/downloads/resources',
+      listKey: 'resources',
+      query: {'categoryId': ?categoryId},
+      emptyTitle: '暂无资源',
+      emptyMessage: '',
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isApple(context)) const PageIntro('资源'),
+          modeSwitch,
+          if (!isApple(context))
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  AppChoiceChip(
+                    label: const Text('全部资源'),
+                    selected: categoryId == null,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => category = null),
+                  ),
+                  ...?(categories.value?.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: AppChoiceChip(
+                        label: MarkdownText(str(c['name']), maxLines: 1),
+                        selected: categoryId == c['id'],
                         showCheckmark: false,
-                        onSelected: (_) => setState(() => category = null),
+                        onSelected: (_) =>
+                            setState(() => category = str(c['id'])),
                       ),
-                      ...?(categories.value?.map(
-                        (c) => Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: AppChoiceChip(
-                            label: MarkdownText(str(c['name']), maxLines: 1),
-                            selected: categoryId == c['id'],
-                            showCheckmark: false,
-                            onSelected: (_) =>
-                                setState(() => category = str(c['id'])),
-                          ),
-                        ),
-                      )),
-                    ],
-                  ),
-                ),
-              if (categories.hasError)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: AppTextButton.icon(
-                    onPressed: () => ref.invalidate(categoriesProvider),
-                    icon: const AppIcon(Icons.refresh, size: 18),
-                    label: const Text('分类加载失败，点击重试'),
-                  ),
-                ),
-              const SizedBox(height: 12),
-            ],
-          ),
-          itemBuilder: (r) => ResourceTile(
-            r,
-            onTap: () async {
-              await openPage(context, ResourcePage(id: str(r['id'])));
-              if (mounted) setState(() => revision++);
-            },
-          ),
-        ),
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          if (categories.hasError)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: AppTextButton.icon(
+                onPressed: () => ref.invalidate(categoriesProvider),
+                icon: const AppIcon(Icons.refresh, size: 18),
+                label: const Text('分类加载失败，点击重试'),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+      ),
+      itemBuilder: (r) => ResourceTile(
+        r,
+        onTap: () async {
+          await openPage(context, ResourcePage(id: str(r['id'])));
+          if (mounted) setState(() => revision++);
+        },
       ),
     );
+    if (isApple(context)) return feed;
+    return SafeArea(bottom: false, child: PageWidth(child: feed));
   }
 }
