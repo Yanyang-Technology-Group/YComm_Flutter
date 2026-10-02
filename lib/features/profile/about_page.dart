@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_info.dart';
 import '../../core/update/update_controller.dart';
 import '../../core/widgets/design.dart';
+import '../../core/window/desktop_settings.dart';
 import '../update/update_ui.dart';
 import 'profile_page.dart';
 
@@ -22,7 +23,7 @@ class AboutPage extends ConsumerWidget {
     final children = <Widget>[
       Center(
         child: Image.asset(
-          'assets/ycomm_mark.png',
+          desktopIconAsset(ref.watch(desktopSettingsProvider).icon),
           height: 90,
           width: 90,
           semanticLabel: '晏阳社区 Logo',

@@ -23,9 +23,6 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(themeControllerProvider);
     final user = ref.watch(sessionProvider).value;
-    final desktop = ref.watch(desktopSettingsProvider);
-    final desktopControl = ref.read(desktopSettingsProvider.notifier);
-    final scheme = Theme.of(context).colorScheme;
     final children = <Widget>[
       const SizedBox(height: 8),
       if (user != null) ...[
@@ -62,62 +59,18 @@ class SettingsPage extends ConsumerWidget {
           ),
         ],
       ),
-      // 桌面管理：桌面端才有托盘与系统通知，手机端不显示这一段。
-      if (isDesktopShell) ...[
-        const SizedBox(height: 26),
-        const SectionLabel('桌面管理'),
-        SettingsGroup(
-          children: [
-            AppSwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 4,
-              ),
-              secondary: AppIcon(
-                Icons.desktop_windows_outlined,
-                color: scheme.primary,
-              ),
-              title: const Text('系统托盘'),
-              subtitle: const Text('关闭窗口时收进托盘；右键托盘图标可退出'),
-              value: desktop.tray,
-              onChanged: desktopControl.setTray,
-            ),
-            AppSwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 4,
-              ),
-              secondary: AppIcon(
-                Icons.notifications_active_outlined,
-                color: scheme.primary,
-              ),
-              title: const Text('右下角系统通知'),
-              subtitle: const Text('收到新消息时在屏幕右下角弹出提示'),
-              value: desktop.notifications,
-              onChanged: desktopControl.setNotifications,
-            ),
-            AppSwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 4,
-              ),
-              secondary: AppIcon(
-                Icons.power_settings_new_outlined,
-                color: scheme.primary,
-              ),
-              title: const Text('开机自启动'),
-              subtitle: const Text('登录系统后自动启动客户端'),
-              value: desktop.startup,
-              onChanged: (value) async {
-                final ok = await desktopControl.setStartup(value);
-                if (!ok && context.mounted) {
-                  appNotice(context, '设置开机自启动失败，可能被系统策略拦下了');
-                }
-              },
-            ),
-          ],
-        ),
-      ],
+      const SizedBox(height: 26),
+      const SectionLabel('通用'),
+      SettingsGroup(
+        children: [
+          SettingsRow(
+            icon: Icons.settings_outlined,
+            title: '系统设置',
+            subtitle: isDesktopShell ? '默认图标、系统托盘、通知与开机自启动' : '默认图标',
+            onTap: () => openPage(context, const SystemSettingsPage()),
+          ),
+        ],
+      ),
       const SizedBox(height: 26),
       const SectionLabel('开发者工具'),
       SettingsGroup(
@@ -166,6 +119,52 @@ class SettingsPage extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: children,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SystemSettingsPage extends ConsumerWidget {
+  const SystemSettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(desktopSettingsProvider);
+    final control = ref.read(desktopSettingsProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+    return AppScaffold(
+      appBar: const AppNavigationBar(title: Text('系统设置')),
+      body: SafeArea(
+        child: PageWidth(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 32),
+            children: [
+              const SizedBox(height: 8),
+              const SectionLabel('默认图标'),
+              SettingsGroup(
+                children: DesktopIcon.values.map((icon) => AppListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  leading: Image.asset(desktopIconAsset(icon), width: 24, height: 24),
+                  title: Text(icon == DesktopIcon.newIcon ? '默认' : '经典'),
+                  subtitle: Text(icon == DesktopIcon.newIcon ? '圆蓝白图标' : '原来的应用图标'),
+                  trailing: settings.icon == icon ? AppIcon(Icons.check_rounded, color: scheme.primary) : null,
+                  onTap: () => control.setIcon(icon),
+                )).toList(),
+              ),
+              if (isDesktopShell) ...[
+                const SizedBox(height: 26),
+                const SectionLabel('系统行为'),
+                SettingsGroup(children: [
+                  AppSwitchListTile(title: const Text('系统托盘'), subtitle: const Text('关闭窗口时收进托盘；右键托盘图标可退出'), value: settings.tray, onChanged: control.setTray),
+                  AppSwitchListTile(title: const Text('右下角系统通知'), subtitle: const Text('收到新消息时在屏幕右下角弹出提示'), value: settings.notifications, onChanged: control.setNotifications),
+                  AppSwitchListTile(title: const Text('开机自启动'), subtitle: const Text('登录系统后自动启动客户端'), value: settings.startup, onChanged: (value) async {
+                    if (!await control.setStartup(value) && context.mounted) appNotice(context, '设置开机自启动失败，可能被系统策略拦下了');
+                  }),
+                ]),
+              ],
+            ],
           ),
         ),
       ),
