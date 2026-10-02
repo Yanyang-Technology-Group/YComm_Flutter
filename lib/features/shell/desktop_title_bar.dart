@@ -12,8 +12,10 @@ import '../../core/design/adaptive.dart';
 // 颜色全部取自当前主题，所以换主题时标题栏会跟着变——这正是当初要自绘的原因。
 import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/window/desktop_shell.dart';
+import '../../core/window/desktop_settings.dart';
 
 /// 在 Navigator 外保留窗口标题栏，并为其提示提供全窗口 Overlay。
 class DesktopWindowFrame extends StatelessWidget {
@@ -93,11 +95,15 @@ class DesktopTitleBar extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Padding(
                       padding: const EdgeInsets.only(left: 12),
-                      child: Image.asset(
-                        'assets/ycomm_mark.png',
-                        width: 18,
-                        height: 18,
-                        semanticLabel: '晏阳社区',
+                      child: Consumer(
+                        builder: (context, ref, _) => Image.asset(
+                          desktopIconAsset(
+                            ref.watch(desktopSettingsProvider).icon,
+                          ),
+                          width: 18,
+                          height: 18,
+                          semanticLabel: '晏阳社区',
+                        ),
                       ),
                     ),
                   ),

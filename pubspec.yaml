@@ -54,8 +54,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   webview_all: ^1.4.1
-  # 只用了 window_manager 的 setBrightness：让桌面端的系统标题栏跟随应用明暗，
-  # 不碰窗口结构（不加 waitUntilReadyToShow，避免出现窗口不显示的风险）。
+  # window_manager 管理自绘标题栏、任务栏可见性与窗口操作。
+  # 无参 waitUntilReadyToShow 初始化 Windows 任务栏对象，不主动隐藏窗口。
   # Windows 上它其实不生效（会先读注册表，系统浅色时应用怎么请求都没用），
   # 那条路走 dart:ffi 直接调 DWM，见 lib/core/window/caption_color_ffi.dart。
   window_manager: ^0.5.2
@@ -101,6 +101,9 @@ flutter:
     - assets/ycomm_mark.png
     - assets/github_mark.png
     - assets/app_icon.png
+    - assets/app_icon_classic.png
+    - assets/app_icon.ico
+    - assets/app_icon_classic.ico
 
   # To add assets to your application, add an assets section, like this:
   # assets:

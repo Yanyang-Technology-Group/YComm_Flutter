@@ -1,8 +1,7 @@
 // 桌面端系统标题栏跟随应用主题。
 //
-// 低风险方案：不动窗口结构（不设 titleBarStyle、不调 waitUntilReadyToShow，
-// 自绘标题栏一旦拖动或按钮有问题，用户会既不能移动也不能关窗），只调整系统
-// 标题栏的外观。拖动、缩放、关闭仍由系统负责。
+// 低风险方案：保留窗口结构，只调整系统标题栏的外观。托盘功能在桌面外壳中
+// 初始化 waitUntilReadyToShow，以便隐藏窗口时正确移除任务栏按钮。
 //
 // 平台差异：
 //   Windows —— 自己调 DWM（见 caption_color_ffi.dart）。window_manager 在

@@ -210,11 +210,13 @@ class _AppShellState extends ConsumerState<AppShell>
       return;
     }
     try {
+      await setDesktopWindowIcon(desktopIconAsset(settings.icon));
       await preventWindowClose(settings.tray);
       if (settings.tray) {
         await enableTray(
           onShowWindow: showMainWindow,
           onCheckUpdate: () => checkForUpdates(context, ref),
+          iconAsset: desktopIconAsset(settings.icon),
           onExit: () async {
             await disableTray();
             await destroyWindow();

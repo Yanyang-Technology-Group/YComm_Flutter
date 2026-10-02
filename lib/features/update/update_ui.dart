@@ -5,14 +5,14 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../core/app_info.dart';
-import '../../core/network/community_api.dart';
 import '../../core/update/update_controller.dart';
 import '../../core/update/update_service.dart';
+import '../../core/update/installer_download.dart';
 import '../../core/widgets/design.dart';
 import '../../core/window/desktop_shell.dart';
 
@@ -236,11 +236,6 @@ Future<void> _download(
   );
 }
 
-/// 浏览器 User-Agent：镜像站按它放行非浏览器请求。
-const String _browserUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-    '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-
 /// 这个安装包能不能静默安装。
 ///
 /// 只有 Windows 的 Inno Setup 包（.exe）和 MSI 支持无人值守；
@@ -318,6 +313,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   final cancel = CancelToken();
   double? progress;
   String? failure;
+  String? failureDetails;
 
   @override
   void initState() {
@@ -333,64 +329,29 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   Future<void> _run() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final name = widget.info.fileName.replaceAll(
-        RegExp(r'[/\\\x00-\x1f]'),
-        '_',
-      );
-      final file = File('${directory.path}/$name');
-      // 用独立的 Dio：这是第三方镜像地址（ghproxy），不该带上社区站的 Cookie。
-      //
-      // 必须伪装成浏览器：ghproxy 会按 User-Agent 拦非浏览器请求，Dio 默认的
-      // "Dio/5.x" 会被拒。那正是「应用内下载总失败、只能退到浏览器」的原因。
-      final response = await Dio().get<ResponseBody>(
-        widget.info.downloadUrl,
-        options: Options(
-          responseType: ResponseType.stream,
-          followRedirects: true,
-          headers: const {
-            'User-Agent': _browserUserAgent,
-            'Accept': '*/*',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          },
-          receiveTimeout: const Duration(minutes: 10),
-          sendTimeout: const Duration(minutes: 2),
-        ),
+      final file = await downloadInstaller(
+        url: widget.info.downloadUrl,
+        fileName: widget.info.fileName,
         cancelToken: cancel,
+        onProgress: (value) {
+          if (mounted) setState(() => progress = value);
+        },
       );
-      // 非 2xx 要显式报出来，否则会把错误页当成安装包存下来。
-      if (response.statusCode != null &&
-          (response.statusCode! < 200 || response.statusCode! >= 300)) {
-        throw RequestFailure('下载失败（HTTP ${response.statusCode}）');
-      }
-      final length =
-          int.tryParse(response.headers.value('content-length') ?? '') ?? 0;
-      var received = 0;
-      final sink = file.openWrite();
-      try {
-        await sink.addStream(
-          response.data!.stream.map((chunk) {
-            received += chunk.length;
-            if (mounted && length > 0) {
-              setState(() => progress = received / length);
-            }
-            return chunk;
-          }),
-        );
-      } finally {
-        await sink.close();
-      }
       if (mounted) {
         Navigator.of(context).pop(_DownloadResult.saved(file.path));
       }
-    } catch (error) {
-      if (!mounted) {
-        return;
+    } catch (error, stack) {
+      if (!mounted) return;
+      final cancelled = error is DioException && CancelToken.isCancel(error);
+      if (!cancelled) {
+        debugPrint('安装包下载失败：$error');
+        debugPrintStack(stackTrace: error is InstallerDownloadFailure ? error.stackTrace : stack);
       }
       setState(() {
-        failure = error is DioException && CancelToken.isCancel(error)
-            ? '下载已取消'
-            : '$error';
+        failure = cancelled ? '下载已取消' : '$error';
+        failureDetails = cancelled
+            ? null
+            : error is InstallerDownloadFailure ? error.details : '${error.runtimeType}: $error\n\n$stack';
       });
     }
   }
@@ -404,6 +365,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   @override
   Widget build(BuildContext context) => AppAlertDialog(
     title: Text('正在下载 ${widget.info.version}'),
+    scrollable: true,
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,6 +381,14 @@ class _DownloadDialogState extends State<_DownloadDialog> {
           Text(
             failure!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (failureDetails != null)
+          AppTextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: failureDetails!));
+              if (context.mounted) notice(context, '错误详情已复制');
+            },
+            child: const Text('复制错误详情'),
           ),
         const SizedBox(height: 8),
         Text(

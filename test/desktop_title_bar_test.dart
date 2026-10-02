@@ -1,13 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ycomm_client/core/window/desktop_shell.dart';
 import 'package:ycomm_client/features/shell/desktop_title_bar.dart';
 
 /// 与生产环境一致：标题栏位于 Navigator 外部。
-Widget _app(Widget child) => MaterialApp(
-  builder: (context, page) => DesktopWindowFrame(titleBar: child, child: page),
-  home: const Scaffold(body: Text('首页')),
+Widget _app(Widget child) => ProviderScope(
+  child: MaterialApp(
+    builder: (context, page) => DesktopWindowFrame(titleBar: child, child: page),
+    home: const Scaffold(body: Text('首页')),
+  ),
 );
 
 void main() {

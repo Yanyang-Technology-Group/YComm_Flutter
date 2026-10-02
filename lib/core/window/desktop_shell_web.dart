@@ -20,11 +20,13 @@ Future<void> closeWindow() async {}
 Future<void> hideWindow() async {}
 Future<void> showMainWindow() async {}
 Future<void> preventWindowClose(bool prevent) async {}
+Future<void> setDesktopWindowIcon(String iconAsset) async {}
 
 Future<void> enableTray({
   required VoidCallback onShowWindow,
   required VoidCallback onCheckUpdate,
   required VoidCallback onExit,
+  String iconAsset = 'assets/app_icon.png',
 }) async {}
 
 Future<void> disableTray() async {}

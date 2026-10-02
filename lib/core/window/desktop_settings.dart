@@ -1,7 +1,7 @@
 // 桌面端（Windows/macOS/Linux）的外观与后台行为开关。
 //
 // 托盘默认开启：这是客户端常见的后台驻留方式，关掉窗口时留在托盘里；
-// 不想要的人可以在「外观与主题」里一键关闭，关掉后点 X 就是直接退出。
+// 不想要的人可以在「通用 → 系统设置」里一键关闭，关掉后点 X 就是直接退出。
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +12,7 @@ class DesktopSettings {
     this.tray = true,
     this.notifications = true,
     this.startup = false,
+    this.icon = DesktopIcon.newIcon,
   });
 
   /// 是否启用系统托盘（关闭窗口时最小化到托盘）。
@@ -25,17 +26,33 @@ class DesktopSettings {
   /// 不一致 —— 这里只是启动时读出来给开关用。
   final bool startup;
 
-  DesktopSettings copyWith({bool? tray, bool? notifications, bool? startup}) =>
+  final DesktopIcon icon;
+
+  DesktopSettings copyWith({
+    bool? tray,
+    bool? notifications,
+    bool? startup,
+    DesktopIcon? icon,
+  }) =>
       DesktopSettings(
         tray: tray ?? this.tray,
         notifications: notifications ?? this.notifications,
         startup: startup ?? this.startup,
+        icon: icon ?? this.icon,
       );
 }
+
+enum DesktopIcon { newIcon, classic }
+
+String desktopIconAsset(DesktopIcon icon) => switch (icon) {
+  DesktopIcon.newIcon => 'assets/app_icon.png',
+  DesktopIcon.classic => 'assets/app_icon_classic.png',
+};
 
 class DesktopSettingsController extends Notifier<DesktopSettings> {
   static const trayKey = 'ycomm_desktop_tray';
   static const notificationsKey = 'ycomm_desktop_notifications';
+  static const iconKey = 'ycomm_desktop_icon';
 
   @override
   DesktopSettings build() => const DesktopSettings();
@@ -47,6 +64,9 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
       notifications: prefs.getBool(notificationsKey) ?? true,
       // 读系统里的真实状态：用户可能在系统设置里自己关掉了自启动。
       startup: await isLaunchAtLoginEnabled(),
+      icon: prefs.getString(iconKey) == 'classic'
+          ? DesktopIcon.classic
+          : DesktopIcon.newIcon,
     );
   }
 
@@ -60,6 +80,14 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
     await (await SharedPreferences.getInstance()).setBool(
       notificationsKey,
       value,
+    );
+  }
+
+  Future<void> setIcon(DesktopIcon value) async {
+    state = state.copyWith(icon: value);
+    await (await SharedPreferences.getInstance()).setString(
+      iconKey,
+      value == DesktopIcon.classic ? 'classic' : 'new',
     );
   }
 

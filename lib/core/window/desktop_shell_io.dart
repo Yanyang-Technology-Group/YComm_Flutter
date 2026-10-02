@@ -27,6 +27,15 @@ const double desktopTitleBarHeight = 38;
 
 TrayIcon? _trayIcon;
 Menu? _trayMenu;
+bool _readyToShow = false;
+
+Future<void> _ensureReadyToShow() async {
+  if (_readyToShow || !isDesktopShell) return;
+  // 失败必须向上传递，不能继续调用原生 setSkipTaskbar（taskbar_ 仍为空）。
+  await windowManager.ensureInitialized();
+  await windowManager.waitUntilReadyToShow();
+  _readyToShow = true;
+}
 
 /// 启动时调用一次：初始化窗口与通知。
 Future<void> setupDesktopShell() async {
@@ -35,6 +44,7 @@ Future<void> setupDesktopShell() async {
   }
   try {
     await windowManager.ensureInitialized();
+    await _ensureReadyToShow();
     await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     // 自绘之后如果没有最小尺寸，窗口可以被拖到几乎没有，页面上就没法操作了。
     await windowManager.setMinimumSize(const Size(720, 520));
@@ -96,6 +106,8 @@ Future<void> hideWindow() async {
   if (!isDesktopShell) {
     return;
   }
+  await _ensureReadyToShow();
+  await windowManager.setSkipTaskbar(true);
   await windowManager.hide();
 }
 
@@ -103,7 +115,9 @@ Future<void> showMainWindow() async {
   if (!isDesktopShell) {
     return;
   }
+  await _ensureReadyToShow();
   await windowManager.show();
+  await windowManager.setSkipTaskbar(false);
   await windowManager.focus();
 }
 
@@ -115,6 +129,12 @@ Future<void> preventWindowClose(bool prevent) async {
   await windowManager.setPreventClose(prevent);
 }
 
+/// Windows 的窗口与任务栏图标可运行时切换；exe 文件本身的资源仍是构建默认值。
+Future<void> setDesktopWindowIcon(String iconAsset) async {
+  if (!isDesktopShell || !Platform.isWindows) return;
+  await windowManager.setIcon(iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico'));
+}
+
 // ---- 系统托盘 ----
 
 /// 打开托盘。
@@ -122,8 +142,13 @@ Future<void> enableTray({
   required VoidCallback onShowWindow,
   required VoidCallback onCheckUpdate,
   required VoidCallback onExit,
+  String iconAsset = 'assets/app_icon.png',
 }) async {
-  if (!isDesktopShell || _trayIcon != null) {
+  if (!isDesktopShell) {
+    return;
+  }
+  if (_trayIcon != null) {
+    _trayIcon!.icon = ImageAsset.fromAsset(iconAsset);
     return;
   }
   try {
@@ -131,7 +156,7 @@ Future<void> enableTray({
     if (tray == null) {
       return;
     }
-    tray.icon = ImageAsset.fromAsset('assets/app_icon.png');
+    tray.icon = ImageAsset.fromAsset(iconAsset);
     tray.setTooltip('晏阳社区');
 
     final menu = Menu.create();
