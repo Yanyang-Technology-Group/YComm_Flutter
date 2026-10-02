@@ -171,10 +171,12 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      AppleApp(
-        theme: buildAppleTheme(ThemeColour.azure, Brightness.dark),
-        builder: (context, child) => DesktopWindowFrame(child: child),
-        home: const AppScaffold(body: Text('窗口内容')),
+      ProviderScope(
+        child: AppleApp(
+          theme: buildAppleTheme(ThemeColour.azure, Brightness.dark),
+          builder: (context, child) => DesktopWindowFrame(child: child),
+          home: const AppScaffold(body: Text('窗口内容')),
+        ),
       ),
     );
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);

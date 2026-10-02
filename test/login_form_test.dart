@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ycomm_client/features/auth/login_page.dart';
 import 'package:ycomm_client/features/auth/register_page.dart';
 
 void main() {
+  Widget app(Widget home) => ProviderScope(child: MaterialApp(home: home));
+
   testWidgets(
     'GitHub sign-in requires consent without validating password fields',
     (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      await tester.pumpWidget(app(const LoginPage()));
       final button = find.text('使用 GitHub 登录');
       await tester.scrollUntilVisible(
         button,
@@ -32,7 +35,7 @@ void main() {
   testWidgets(
     'registration offers GitHub without requiring password registration fields',
     (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: RegisterPage()));
+      await tester.pumpWidget(app(const RegisterPage()));
       final button = find.text('使用 GitHub 登录');
       await tester.scrollUntilVisible(
         button,
@@ -54,7 +57,7 @@ void main() {
   testWidgets('empty fields are rejected before contacting authentication', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+    await tester.pumpWidget(app(const LoginPage()));
     final submit = find.widgetWithText(FilledButton, '登录');
     await tester.ensureVisible(submit);
     await tester.pumpAndSettle();
@@ -71,7 +74,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+    await tester.pumpWidget(app(const LoginPage()));
     await tester.enterText(find.byType(TextFormField).first, 'test');
     await tester.enterText(find.byType(TextFormField).last, 'password');
     final submit = find.widgetWithText(FilledButton, '登录');
