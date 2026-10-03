@@ -224,36 +224,40 @@ class _ForumPageState extends ConsumerState<ForumPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
                 // 小小的浮钮挂在左下角，而不是横跨整条底栏。
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: PressableScale(
-                    onTap: () => compose(boards.value!),
-                    pressedScale: 0.96,
-                    child: Container(
-                      key: const ValueKey('community-composer'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '✏ 发点新鲜事',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                // 这里必须用 Row 而不是 Align：bottomNavigationBar 给的是无界高度，
+                // Align 会撑成无限高，整页布局直接失败（论坛内容全都渲染不出来）。
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    PressableScale(
+                      onTap: () => compose(boards.value!),
+                      pressedScale: 0.96,
+                      child: Container(
+                        key: const ValueKey('community-composer'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '✏ 发点新鲜事',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             )
