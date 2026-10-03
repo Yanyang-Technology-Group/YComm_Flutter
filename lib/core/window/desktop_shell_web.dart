@@ -3,6 +3,7 @@
 // 为什么要单独一份：tray_manager 底层的 nativeapi 用了 dart:ffi，Web 编译不过，
 // 所以 desktop_shell.dart 用条件导出把实现挡在 Web 之外（见该文件）。
 import 'package:flutter/foundation.dart' show VoidCallback;
+import 'package:flutter/widgets.dart' show SizedBox, Widget;
 
 /// Web 永远不是桌面外壳。
 bool get isDesktopShell => false;
@@ -58,3 +59,7 @@ Future<void> showRestartNotice() async {}
 Future<bool> openVideoWindow(String url, String? title) async => false;
 Map<String, dynamic> parseVideoWindowArgument(String raw) =>
     const <String, dynamic>{};
+Widget videoPlayerWindowApp({
+  required int windowId,
+  required Map<String, dynamic> argument,
+}) => const SizedBox.shrink();
