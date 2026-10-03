@@ -33,6 +33,8 @@ const double desktopTitleBarHeight = 38;
 TrayIcon? _trayIcon;
 Menu? _trayMenu;
 bool _readyToShow = false;
+/// 正在创建托盘（enableTray 里有 await，重入会建出第二个图标）。
+bool _trayCreating = false;
 /// 窗口当前是否收在托盘里（用来判断延迟补摘任务栏按钮还要不要做）。
 bool _windowHidden = false;
 
@@ -304,10 +306,16 @@ Future<void> enableTray({
   if (!isDesktopShell) {
     return;
   }
+  // 并发重入保护：applyDesktopSettings 可能连着触发两次（fireImmediately + load 完成），
+  // 中间隔着 await，第二次进来时 _trayIcon 还没赋值，就会在任务栏旁边的托盘区多出一个图标。
+  if (_trayCreating) {
+    return;
+  }
   if (_trayIcon != null) {
     _trayIcon!.icon = ImageAsset.fromAsset(iconAsset);
     return;
   }
+  _trayCreating = true;
   try {
     final tray = TrayIcon.create();
     if (tray == null) {
@@ -367,6 +375,8 @@ Future<void> enableTray({
     _trayMenu = menu;
   } catch (error) {
     debugPrint('启用系统托盘失败：$error');
+  } finally {
+    _trayCreating = false;
   }
 }
 

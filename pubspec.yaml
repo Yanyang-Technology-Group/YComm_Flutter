@@ -54,6 +54,11 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   webview_all: ^1.4.1
+  # 帖子内视频播放：media_kit 一套覆盖 Windows/Linux/macOS/Android/iOS，
+  # libs_video 是各平台解码库的总包（Linux 构建机需要系统 libmpv，见 release.yml）。
+  media_kit: ^1.2.0
+  media_kit_video: ^1.3.0
+  media_kit_libs_video: ^1.0.5
   # window_manager 管理自绘标题栏、任务栏可见性与窗口操作。
   # 无参 waitUntilReadyToShow 初始化 Windows 任务栏对象，不主动隐藏窗口。
   # Windows 上它其实不生效（会先读注册表，系统浅色时应用怎么请求都没用），

@@ -4,6 +4,7 @@ import 'core/design/adaptive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart' show MediaKit;
 import 'package:window_manager/window_manager.dart';
 
 import 'core/design/apple_chrome.dart';
@@ -28,6 +29,8 @@ import 'features/update/update_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 帖子内视频播放器（media_kit）必须先初始化，再碰任何 Player。
+  MediaKit.ensureInitialized();
   // 渲染模式是启动参数：上次关掉 GPU 加速的话，这次要带着软件渲染开关重新起来。
   await alignGpuAccelerationOnLaunch();
   await ApiClient.initialize();

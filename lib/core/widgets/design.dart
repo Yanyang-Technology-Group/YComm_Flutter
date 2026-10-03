@@ -1,6 +1,7 @@
 import '../design/adaptive.dart';
 
 import 'package:flutter/material.dart';
+import '../../features/media/video_player_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -475,9 +476,12 @@ class InlineVideoCard extends StatelessWidget {
     return PressableScale(
       onTap: () {
         final resolved = resolveSiteUrl(url);
-        if (resolved != null) {
-          externalLink(context, resolved.toString());
-        }
+        if (resolved == null) return;
+        // 应用内整页播放：手机端左上角有返回按钮，桌面端随后换成独立播放窗口。
+        openTaskPage<void>(
+          context,
+          VideoPlayerPage(url: resolved.toString(), title: title),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
