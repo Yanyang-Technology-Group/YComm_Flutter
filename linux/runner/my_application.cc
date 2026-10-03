@@ -36,7 +36,8 @@ static void app_icon_method_call(FlMethodChannel* channel,
   g_autofree gchar* bundle = executable ? g_path_get_dirname(executable) : nullptr;
   g_autofree gchar* path = bundle ? g_build_filename(bundle, "data", "flutter_assets", "assets", suffix, nullptr) : nullptr;
   if (!path || !gtk_window_set_icon_from_file(app_window, path, nullptr)) {
-    fl_method_call_respond_error(method_call, "ICON_NOT_FOUND", "应用图标资源不可用", nullptr);
+    // respond_error 的最后一个参数是 GError**，漏掉它编译不过（flutter_linux 5 参）。
+    fl_method_call_respond_error(method_call, "ICON_NOT_FOUND", "应用图标资源不可用", nullptr, nullptr);
     return;
   }
   fl_method_call_respond_success(method_call, nullptr, nullptr);
