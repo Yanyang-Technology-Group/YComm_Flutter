@@ -77,6 +77,7 @@ final _appleIcons = <IconData, IconData>{
   m.Icons.north_east_rounded: CupertinoIcons.arrow_up_right,
   m.Icons.notifications_active_outlined: CupertinoIcons.bell,
   m.Icons.notifications_none_rounded: CupertinoIcons.bell,
+  m.Icons.notifications_outlined: CupertinoIcons.bell,
   m.Icons.notifications_rounded: CupertinoIcons.bell_fill,
   m.Icons.open_in_new: CupertinoIcons.arrow_up_right_square,
   m.Icons.open_in_new_rounded: CupertinoIcons.arrow_up_right_square,
