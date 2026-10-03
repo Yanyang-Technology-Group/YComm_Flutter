@@ -15,7 +15,6 @@ import '../auth/auth_gate.dart';
 import '../search/search_page.dart';
 import 'topic_page.dart';
 import 'compose_page.dart';
-import '../../core/widgets/inline_composer.dart';
 
 final boardsProvider = FutureProvider<List<Json>>((ref) {
   ref.watch(sessionProvider);
@@ -29,13 +28,7 @@ class ForumPage extends ConsumerStatefulWidget {
 }
 
 class _ForumPageState extends ConsumerState<ForumPage> {
-  final draft = TextEditingController();
   bool composing = false;
-  @override
-  void dispose() {
-    draft.dispose();
-    super.dispose();
-  }
 
   Future<void> compose(List<Json> boards) async {
     if (composing) return;
@@ -45,15 +38,9 @@ class _ForumPageState extends ConsumerState<ForumPage> {
       if (!await requireSession(context, ref) || !mounted) return;
       final result = await openTaskPage<bool>(
         context,
-        ComposePage(
-          boards: boards,
-          initialSlug: selected,
-          initialContent: draft.text,
-          onContentChanged: (text) => draft.text = text,
-        ),
+        ComposePage(boards: boards, initialSlug: selected),
       );
       if (result == true && mounted) {
-        draft.clear();
         setState(() => revision++);
       }
     } finally {
@@ -232,12 +219,32 @@ class _ForumPageState extends ConsumerState<ForumPage> {
               ),
             ),
       bottomNavigationBar: !apple && boards.value?.isNotEmpty == true
-          ? InlineComposer(
-              controller: draft,
-              inputKey: const ValueKey('community-composer'),
-              hint: '分享新鲜事…',
-              sendLabel: '继续发布',
-              onSend: () => compose(boards.value!),
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: PressableScale(
+                  onTap: () => compose(boards.value!),
+                  pressedScale: 0.99,
+                  child: Container(
+                    key: const ValueKey('community-composer'),
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '✏ 发点新鲜事',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             )
           : null,
     );
