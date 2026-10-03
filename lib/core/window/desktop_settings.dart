@@ -99,8 +99,14 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
   }
 
   Future<void> setIcon(DesktopIcon value) async {
-    await setDesktopWindowIcon(desktopIconAsset(value));
+    // 切图标失败不能挡住「记住选择」本身：先落状态与偏好，再尽力切原生图标，
+    // 否则某个平台切不动时，用户点「经典」会像什么都没发生。
     state = state.copyWith(icon: value);
+    try {
+      await setDesktopWindowIcon(desktopIconAsset(value));
+    } catch (error) {
+      debugPrint('切换应用图标失败：$error');
+    }
     await (await SharedPreferences.getInstance()).setString(
       iconKey,
       value == DesktopIcon.classic ? 'classic' : 'new',

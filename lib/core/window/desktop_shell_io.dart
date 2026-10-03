@@ -5,7 +5,8 @@
 // SWP_FRAMECHANGED，**不动 WS_THICKFRAME**，所以隐藏系统标题栏之后窗口边缘
 // 仍然可以拉伸缩放；拖动、最小化、最大化、关闭改由 Flutter 侧调用
 // startDragging / minimize / maximize / close。
-import 'dart:io' show Directory, Platform, Process, ProcessStartMode, exit;
+import 'dart:io'
+    show Directory, File, Platform, Process, ProcessStartMode, exit;
 
 import 'package:flutter/foundation.dart'
     show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
@@ -155,10 +156,28 @@ Future<void> preventWindowClose(bool prevent) async {
   await windowManager.setPreventClose(prevent);
 }
 
-/// Windows 的窗口与任务栏图标可运行时切换；exe 文件本身的资源仍是构建默认值。
+/// 切换窗口 / 任务栏 / 启动器图标。
+///
+/// Windows：只切窗口与任务栏图标（exe 内嵌图标是构建期资源）。window_manager
+///   要的是**磁盘路径**，而 Flutter 资源在打包后位于 exe 同级的
+///   `data/flutter_assets/` 下；直接传 "assets/app_icon.ico" 这种资源键会失败，
+///   整条设置链也跟着断掉。
+/// 其他平台：交给各自 runner 的 cn.yanyn.community/app_icon 通道（Windows runner
+///   没有实现这个通道，所以这里不能对它调用，否则会抛 MissingPluginException）。
 Future<void> setDesktopWindowIcon(String iconAsset) async {
-  if (Platform.isWindows && isDesktopShell) {
-    await windowManager.setIcon(iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico'));
+  if (!isDesktopShell) {
+    return;
+  }
+  if (Platform.isWindows) {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    final icon = iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico');
+    final onDisk = File('$exeDir\\data\\flutter_assets\\$icon');
+    if (!onDisk.existsSync()) {
+      debugPrint('找不到窗口图标文件：${onDisk.path}');
+      return;
+    }
+    await windowManager.setIcon(onDisk.path);
+    return;
   }
   await const MethodChannel('cn.yanyn.community/app_icon').invokeMethod<void>(
     'setIcon',
