@@ -3,6 +3,9 @@
 // Used by Runner.rc
 //
 #define IDI_APP_ICON                    101
+// 第二组图标（经典样式）：exe 里同时带两套图标，快捷方式的 IconLocation 可以写成
+// ycomm_client.exe,1 指向这一组；shell 给 exe 文件本身仍用 ID 最小的 101。
+#define IDI_APP_ICON_CLASSIC            102
 
 // Next default values for new objects
 //

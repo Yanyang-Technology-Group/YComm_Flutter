@@ -428,7 +428,13 @@ class MarkdownContent extends StatelessWidget {
         }
       },
       imageBuilder: (uri, title, alt) {
-        final resolved = resolveSiteUrl(uri.toString());
+        final raw = uri.toString();
+        // Markdown 没有视频语法，服务端把视频也写成 ![](/api/uploads/videos/x.mp4)，
+        // 这类链接交给 Image.network 只会解码失败（用户看到的就是「无法加载/无法播放」）。
+        if (isInlineVideoUrl(raw)) {
+          return InlineVideoCard(url: raw, title: title);
+        }
+        final resolved = resolveSiteUrl(raw);
         if (resolved == null || !['https', 'http'].contains(resolved.scheme)) {
           return const SizedBox.shrink();
         }
@@ -447,6 +453,65 @@ class MarkdownContent extends StatelessWidget {
       },
     ),
   );
+}
+
+/// 帖子里的视频链接（服务端上传的视频固定是这三种后缀）。
+bool isInlineVideoUrl(String url) {
+  final path = url.split('?').first.split('#').first.toLowerCase();
+  return path.endsWith('.mp4') || path.endsWith('.webm') || path.endsWith('.mov');
+}
+
+/// 帖子里的视频：客户端不带解码器，直接给一个可点的卡片交给系统播放器/浏览器打开。
+///
+/// 以前这里会退化成 Image.network 去解 mp4，必然失败，用户看到的是
+/// 「图片暂时无法加载」——也就是「客户端放不了视频」。
+class InlineVideoCard extends StatelessWidget {
+  const InlineVideoCard({super.key, required this.url, this.title});
+  final String url;
+  final String? title;
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return PressableScale(
+      onTap: () {
+        final resolved = resolveSiteUrl(url);
+        if (resolved != null) {
+          externalLink(context, resolved.toString());
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: .6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(Icons.play_arrow_rounded, color: scheme.primary, size: 26),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title?.trim().isNotEmpty == true ? title! : '视频',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '点击用系统播放器打开',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> copyLink(BuildContext context, String path) async {
