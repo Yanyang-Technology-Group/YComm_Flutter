@@ -357,9 +357,28 @@ jobs:
           # 拖到「应用程序」即可安装
           ln -s /Applications "$STAGE/Applications"
           mkdir -p dist
+          DMG="dist/ycomm-macos-${APP_VERSION}.dmg"
+          # CI 上偶发残留挂载会让 create/verify 报 EBUSY/EAGAIN，先清一次同名挂载点。
+          hdiutil detach "/Volumes/${APP_NAME}" >/dev/null 2>&1 || true
           hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" \
-            -ov -format UDZO "dist/ycomm-macos-${APP_VERSION}.dmg"
-          hdiutil verify "dist/ycomm-macos-${APP_VERSION}.dmg"
+            -ov -format UDZO "$DMG"
+          # 落盘后再校验：macos runner 上镜像刚写完就 verify 偶尔会报
+          # "unable to recognize ... as a disk image. (Resource temporarily unavailable)"，
+          # 属于文件还被占用/未落盘的瞬时错误，这里重试几次再判定失败。
+          sync
+          verified=0
+          for attempt in 1 2 3 4 5; do
+            if hdiutil verify "$DMG"; then
+              verified=1
+              break
+            fi
+            echo "hdiutil verify 第 ${attempt} 次失败，5 秒后重试…"
+            sleep 5
+          done
+          if [ "$verified" != 1 ]; then
+            echo "::error::DMG 校验失败：$DMG"
+            exit 1
+          fi
           ls -l dist
       - name: Notarize and staple DMG
         if: env.HAS_APPLE_CERT == 'true' && env.HAS_NOTARY == 'true'
@@ -605,6 +624,7 @@ jobs:
             "/DOutputDir=$PWD\dist" `
             "/DIconFile=$PWD\windows\runner\resources\app_icon.ico" `
             "/DOutputBaseName=ycomm-windows-$env:APP_VERSION-setup" `
+            "/DSetupTitle=正在更新晏阳社区" `
             'tool\windows_installer.iss'
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
           Get-ChildItem dist | Format-Table Name, Length

@@ -40,6 +40,11 @@
 #ifndef IconFile
   #define IconFile "..\windows\runner\resources\app_icon.ico"
 #endif
+; 安装/升级时窗口标题栏上的文字。Inno 的窗口标题是 [Messages] 里的 SetupWindowTitle，
+; 不是 [Setup] 指令；文案仍然按文件头约定由 /D 注入（命令行参数是 UTF-16，不会乱码）。
+#ifndef SetupTitle
+  #define SetupTitle AppName + " Setup"
+#endif
 
 [Setup]
 ; AppId must never change, otherwise upgrades register as a different product
@@ -53,7 +58,6 @@ AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}
 AppUpdatesURL={#AppUrl}
 AppCopyright=Copyright (C) 2026 {#AppPublisher}
-SetupWindowTitle=正在更新晏阳社区
 ; Version info of the installer itself - this is what Explorer's Properties
 ; dialog shows, and it is where the publisher is declared.
 VersionInfoCompany={#AppPublisher}
@@ -80,6 +84,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\ycomm_client.exe
 AllowNoIcons=yes
+
+[Messages]
+; 升级窗口标题栏文字（默认是 "<AppName> Setup"）。静默升级时这就是用户看到的那扇窗。
+SetupWindowTitle={#SetupTitle}
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
