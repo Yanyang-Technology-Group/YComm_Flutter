@@ -12,7 +12,7 @@ import 'dart:convert' show jsonDecode, jsonEncode;
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart'
     show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
-import 'package:flutter/material.dart' show Rect, Widget;
+import 'package:flutter/material.dart' show MaterialApp, Rect, Widget;
 import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
@@ -21,7 +21,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'gpu_probe_ffi.dart';
-import '../features/media/video_player_page.dart';
+import '../../features/media/video_player_page.dart';
 
 /// 是否是支持托盘与自绘标题栏的桌面平台。
 bool get isDesktopShell =>

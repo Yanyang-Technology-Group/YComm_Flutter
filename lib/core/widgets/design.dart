@@ -13,6 +13,7 @@ import '../design/apple_chrome.dart';
 import '../design/apple_widgets.dart';
 import '../design/tokens.dart';
 import '../network/community_api.dart';
+import '../window/desktop_shell.dart';
 import 'markdown_text.dart';
 
 export 'markdown_text.dart';
