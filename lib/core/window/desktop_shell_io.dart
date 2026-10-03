@@ -9,10 +9,9 @@ import 'dart:io'
     show Directory, File, Platform, Process, ProcessStartMode, exit;
 import 'dart:convert' show jsonDecode, jsonEncode;
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart'
     show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
-import 'package:flutter/material.dart' show MaterialApp, Rect, Widget;
+import 'package:flutter/material.dart' show MaterialApp, Widget;
 import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
@@ -481,21 +480,22 @@ Future<bool> setLaunchAtLogin(bool enabled) async {
 
 /// 用独立窗口播放视频（Windows/Linux/macOS）。返回是否成功开了新窗口。
 ///
-/// 走 desktop_multi_window：新窗口是同一进程里的第二个引擎，入口参数是
-/// `multi_window <windowId> <json>`（见 main()），所以那扇窗只跑播放页，
-/// 不带主窗口的登录态、托盘、自绘标题栏。
+/// 这里**不再用 desktop_multi_window**：它拉起的第二个引擎里，插件的原生部分
+/// （media_kit 的视频输出面）挂不上，表现就是「控件正常、画面全黑」——
+/// 而同一个 app 在普通引擎里是能放的。所以改成再起一个**进程**：
+/// 入口参数 `video-window <json>`（见 main()），那个进程只跑播放页，
+/// 插件注册和主进程一模一样，画面就正常了。代价是多一个进程（任务栏多一项）。
 Future<bool> openVideoWindow(String url, String? title) async {
   if (!isDesktopShell) {
     return false;
   }
   try {
-    final controller = await DesktopMultiWindow.createWindow(
-      jsonEncode(<String, dynamic>{'url': url, 'title': title}),
+    await Process.start(
+      _launchAtLoginExecutable(),
+      <String>['video-window', jsonEncode(<String, dynamic>{'url': url, 'title': title})],
+      environment: Platform.environment,
+      mode: ProcessStartMode.detached,
     );
-    await controller.setTitle('视频播放 · 晏阳社区');
-    await controller.setFrame(const Rect.fromLTWH(0, 0, 1000, 620));
-    await controller.center();
-    await controller.show();
     return true;
   } catch (error) {
     debugPrint('打开独立播放窗口失败，退回整页播放：$error');
@@ -514,9 +514,8 @@ Widget videoPlayerWindowApp({
     url: (argument['url'] as String?) ?? '',
     title: argument['title'] as String?,
     softwareSurface: true,
-    // 独立窗口没有路由栈可退，返回按钮直接关掉这扇窗（这是唯一会用到
-    // desktop_multi_window 的地方，所以它只出现在桌面实现文件里）。
-    onClose: () => WindowController.fromWindowId(windowId).close(),
+    // 独立窗口是一个独立进程，没有路由栈可退：返回按钮直接退出这个进程。
+    onClose: exit,
   ),
 );
 

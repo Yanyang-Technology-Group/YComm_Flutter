@@ -31,12 +31,12 @@ Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // 帖子内视频播放器（media_kit）必须先初始化，再碰任何 Player。
   MediaKit.ensureInitialized();
-  // 桌面端独立播放窗口：入口参数是 `multi_window <windowId> <json>`，
-  // 这扇窗只跑播放页，不初始化主窗口那一套（托盘/自绘标题栏/后台同步）。
-  if (args.isNotEmpty && args.first == 'multi_window') {
-    final windowId = args.length > 1 ? int.tryParse(args[1]) ?? 0 : 0;
-    final argument = parseVideoWindowArgument(args.length > 2 ? args[2] : '');
-    runApp(videoPlayerWindowApp(windowId: windowId, argument: argument));
+  // 桌面端独立播放窗口：入口参数是 `video-window <json>`，这个进程只跑播放页，
+  // 不初始化主窗口那一套（托盘/自绘标题栏/后台同步），所以插件是齐的、
+  // 又不会跟主窗口抢托盘。
+  if (args.isNotEmpty && args.first == 'video-window') {
+    final argument = parseVideoWindowArgument(args.length > 1 ? args[1] : '');
+    runApp(videoPlayerWindowApp(windowId: 0, argument: argument));
     return;
   }
   // 渲染模式是启动参数：上次关掉 GPU 加速的话，这次要带着软件渲染开关重新起来。

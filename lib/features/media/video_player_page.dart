@@ -1,3 +1,5 @@
+import 'dart:async' show StreamSubscription;
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -30,6 +32,8 @@ class VideoPlayerPage extends StatefulWidget {
 class _VideoPlayerPageState extends State<VideoPlayerPage> {
   late final Player player;
   late final VideoController controller;
+  StreamSubscription<String>? errorSub;
+  String? error;
 
   @override
   void initState() {
@@ -43,10 +47,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     );
     // 打开即播放；失败不弹错误页，播放器自己会显示加载/错误状态。
     player.open(Media(widget.url));
+    // 出画面之前先别让人对着黑屏猜：把 mpv 的报错原文显示出来。
+    errorSub = player.stream.error.listen((message) {
+      if (mounted) setState(() => error = message);
+    });
   }
 
   @override
   void dispose() {
+    errorSub?.cancel();
     player.dispose();
     super.dispose();
   }
@@ -80,6 +89,25 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
             ),
           ),
         ),
+        if (error != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 72,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  '视频加载失败：$error\n如果这个地址在浏览器里也打不开，说明文件已不在服务器上。',
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ),
+          ),
       ],
     ),
   );
