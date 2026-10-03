@@ -50,6 +50,37 @@ Future<File> downloadInstaller({
     }
     final file = File('${attempt.path}/$name');
     stage = '连接下载服务器';
+    final head = await dio.head<dynamic>(
+      url,
+      options: Options(
+        followRedirects: true,
+        headers: const {'User-Agent': _browserUserAgent, 'Accept-Encoding': 'identity'},
+        receiveTimeout: const Duration(seconds: 20),
+      ),
+      cancelToken: cancelToken,
+    ).catchError((_) => Response<dynamic>(requestOptions: RequestOptions(path: url)));
+    final supportsRanges = (head.headers.value('accept-ranges') ?? '').toLowerCase().contains('bytes');
+    final totalLength = int.tryParse(head.headers.value('content-length') ?? '') ?? 0;
+    if (supportsRanges && totalLength >= 4 * 1024 * 1024) {
+      try {
+        await _downloadInRanges(
+          dio: dio,
+          url: url,
+          file: file,
+          directory: attempt,
+          totalLength: totalLength,
+          cancelToken: cancelToken,
+          onProgress: onProgress,
+          checkCancelled: checkCancelled,
+        );
+        return file;
+      } catch (error) {
+        if (error is DioException && CancelToken.isCancel(error)) rethrow;
+        for (final part in attempt.listSync().whereType<File>().where((item) => item.path.endsWith('.part'))) {
+          await part.delete();
+        }
+      }
+    }
     final response = await dio.get<ResponseBody>(
       url,
       options: Options(
@@ -102,4 +133,70 @@ Future<File> downloadInstaller({
   } finally {
     if (client == null) dio.close(force: true);
   }
+}
+
+Future<void> _downloadInRanges({
+  required Dio dio,
+  required String url,
+  required File file,
+  required Directory directory,
+  required int totalLength,
+  required CancelToken cancelToken,
+  required void Function(double?) onProgress,
+  required void Function() checkCancelled,
+}) async {
+  const chunkCount = 4;
+  final received = List<int>.filled(chunkCount, 0);
+  final parts = List<File>.generate(chunkCount, (index) => File('${directory.path}/$index.part'));
+  await Future.wait(List.generate(chunkCount, (index) async {
+    final start = (totalLength * index) ~/ chunkCount;
+    final end = (totalLength * (index + 1)) ~/ chunkCount - 1;
+    final response = await dio.get<ResponseBody>(
+      url,
+      options: Options(
+        responseType: ResponseType.stream,
+        followRedirects: true,
+        headers: {
+          'User-Agent': _browserUserAgent,
+          'Accept-Encoding': 'identity',
+          'Range': 'bytes=$start-$end',
+        },
+        receiveTimeout: const Duration(minutes: 10),
+      ),
+      cancelToken: cancelToken,
+    );
+    final range = response.headers.value('content-range') ?? '';
+    if (response.statusCode != 206 || !range.startsWith('bytes $start-$end/')) {
+      await response.data?.stream.drain<void>();
+      throw HttpException('服务器未返回有效分段（${response.statusCode}, $range）');
+    }
+    final sink = parts[index].openWrite();
+    try {
+      await sink.addStream(response.data!.stream.map((chunk) {
+        checkCancelled();
+        received[index] += chunk.length;
+        onProgress((received.fold<int>(0, (sum, count) => sum + count) / totalLength).clamp(0, 1));
+        return chunk;
+      }));
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
+    if (received[index] != end - start + 1) {
+      throw HttpException('分段长度不匹配：$start-$end');
+    }
+  }));
+  final sink = file.openWrite();
+  try {
+    for (final part in parts) {
+      await sink.addStream(part.openRead());
+    }
+    await sink.flush();
+  } finally {
+    await sink.close();
+  }
+  for (final part in parts) {
+    await part.delete();
+  }
+  onProgress(1);
 }

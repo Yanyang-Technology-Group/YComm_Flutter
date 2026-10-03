@@ -6,9 +6,8 @@
 // 仍然可以拉伸缩放；拖动、最小化、最大化、关闭改由 Flutter 侧调用
 // startDragging / minimize / maximize / close。
 import 'dart:io' show Platform;
-import 'dart:ui' show Size;
-
 import 'package:flutter/foundation.dart' show VoidCallback, debugPrint, kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
 import 'package:tray_manager/tray_manager.dart';
@@ -131,8 +130,13 @@ Future<void> preventWindowClose(bool prevent) async {
 
 /// Windows 的窗口与任务栏图标可运行时切换；exe 文件本身的资源仍是构建默认值。
 Future<void> setDesktopWindowIcon(String iconAsset) async {
-  if (!isDesktopShell || !Platform.isWindows) return;
-  await windowManager.setIcon(iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico'));
+  if (Platform.isWindows && isDesktopShell) {
+    await windowManager.setIcon(iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico'));
+  }
+  await const MethodChannel('cn.yanyn.community/app_icon').invokeMethod<void>(
+    'setIcon',
+    {'style': iconAsset.contains('classic') ? 'classic' : 'new'},
+  );
 }
 
 // ---- 系统托盘 ----

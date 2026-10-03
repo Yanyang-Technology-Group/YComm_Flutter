@@ -215,10 +215,7 @@ Future<void> _download(
     // 托盘设置本身不动，装完重启后照旧生效。
     await disableTray();
     await preventWindowClose(false);
-    if (await _runInstallerSilently(result.path!)) {
-      if (context.mounted) {
-        notice(context, '正在后台安装，应用会自动重启');
-      }
+    if (context.mounted && await _runInstallerSilently(result.path!)) {
       return;
     }
   }
@@ -251,8 +248,7 @@ bool _supportsSilentInstall(String path) {
 
 /// 无安装向导地运行安装包。
 ///
-/// Inno Setup 的静默参数：
-///   /VERYSILENT         不显示任何界面
+/// Inno Setup 显示安装进度，并在安装完成后启动新版本。
 ///   /SUPPRESSMSGBOXES   连错误提示框也不弹
 ///   /NORESTART          不自动重启系统
 ///   /CLOSEAPPLICATIONS  需要替换文件时把本应用关掉
@@ -268,7 +264,7 @@ Future<bool> _runInstallerSilently(String path) async {
       ], mode: ProcessStartMode.detached);
     } else {
       await Process.start(path, const [
-        '/VERYSILENT',
+        '/SILENT',
         '/SUPPRESSMSGBOXES',
         '/NORESTART',
         '/CLOSEAPPLICATIONS',

@@ -28,6 +28,19 @@ import UIKit
       name: "cn.yanyn.community/accessibility",
       binaryMessenger: registrar.messenger())
     accessibilityChannel = channel
+
+    let iconChannel = FlutterMethodChannel(name: "cn.yanyn.community/app_icon", binaryMessenger: registrar.messenger())
+    iconChannel.setMethodCallHandler { call, result in
+      guard call.method == "setIcon", let args = call.arguments as? [String: Any] else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let icon = (args["style"] as? String) == "classic" ? "ClassicIcon" : nil
+      UIApplication.shared.setAlternateIconName(icon) { error in
+        if let error = error { result(FlutterError(code: "ICON_SWITCH_FAILED", message: error.localizedDescription, details: nil)) }
+        else { result(nil) }
+      }
+    }
     channel.setMethodCallHandler { call, result in
       guard call.method == "getPreferences" else {
         result(FlutterMethodNotImplemented)

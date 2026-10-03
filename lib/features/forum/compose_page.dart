@@ -31,6 +31,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
   final form = GlobalKey<FormState>();
   String? slug, error;
   bool busy = false, preview = false, allowExit = false;
+  DateTime? scheduledAt;
   bool get reply => widget.topicId != null;
   @override
   void initState() {
@@ -109,6 +110,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
         {
           'content': content.text.trim(),
           if (!reply) 'title': title.text.trim(),
+          if (!reply && scheduledAt != null) 'scheduledAt': scheduledAt!.toUtc().toIso8601String(),
           if (widget.replyTo != null) 'replyToPostId': widget.replyTo,
         },
       );
@@ -117,7 +119,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
         context,
         result['needsReview'] == true || result['post']?['status'] == 'pending'
             ? '已提交，审核通过后会显示'
-            : '发布成功',
+            : scheduledAt != null ? '已安排于 ${dateLabel(scheduledAt!.toIso8601String())} 发布' : '发布成功',
       );
       setState(() => allowExit = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -207,6 +209,41 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                           : null,
                     ),
                     const SizedBox(height: 12),
+                    AppSwitchListTile(
+                      title: const Text('定时发布'),
+                      value: scheduledAt != null,
+                      onChanged: busy ? null : (value) async {
+                        if (!value) {
+                          setState(() => scheduledAt = null);
+                          return;
+                        }
+                        final now = DateTime.now();
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          firstDate: now.add(const Duration(hours: 1)),
+                          lastDate: DateTime(now.year, now.month + 3, now.day),
+                          initialDate: now.add(const Duration(hours: 1)),
+                        );
+                        if (pickedDate == null || !context.mounted) return;
+                        final pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+                        );
+                        if (pickedTime == null || !context.mounted) return;
+                        final publishAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                        if (publishAt.isBefore(DateTime.now().add(const Duration(hours: 1)))) {
+                          if (!context.mounted) return;
+                          notice(context, '发布时间需至少在 1 小时后');
+                          return;
+                        }
+                        setState(() => scheduledAt = publishAt);
+                      },
+                    ),
+                    if (scheduledAt != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text('发布时间：${dateLabel(scheduledAt!.toIso8601String())}'),
+                      ),
                   ],
                   if (widget.replyName != null) ...[
                     SmallTag('回复 ${widget.replyName}'),

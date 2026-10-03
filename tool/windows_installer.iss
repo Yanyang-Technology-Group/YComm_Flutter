@@ -53,6 +53,7 @@ AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}
 AppUpdatesURL={#AppUrl}
 AppCopyright=Copyright (C) 2026 {#AppPublisher}
+SetupWindowTitle=正在更新晏阳社区
 ; Version info of the installer itself - this is what Explorer's Properties
 ; dialog shows, and it is where the publisher is declared.
 VersionInfoCompany={#AppPublisher}
@@ -91,4 +92,4 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\ycomm_client.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\ycomm_client.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\ycomm_client.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ycomm_client.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall

@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <flutter_linux/fl_method_channel.h>
+#include <flutter_linux/fl_standard_method_codec.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -14,6 +16,32 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+static GtkWindow* app_window = nullptr;
+static FlMethodChannel* app_icon_channel = nullptr;
+
+static void app_icon_method_call(FlMethodChannel* channel,
+                                FlMethodCall* method_call,
+                                gpointer user_data) {
+  const gchar* method = fl_method_call_get_name(method_call);
+  if (g_strcmp0(method, "setIcon") != 0) {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+    return;
+  }
+  FlValue* args = fl_method_call_get_args(method_call);
+  FlValue* style = args ? fl_value_lookup_string(args, "style") : nullptr;
+  const gchar* suffix = style && g_strcmp0(fl_value_get_string(style), "classic") == 0
+                            ? "app_icon_classic.png"
+                            : "app_icon.png";
+  g_autofree gchar* executable = g_file_read_link("/proc/self/exe", nullptr);
+  g_autofree gchar* bundle = executable ? g_path_get_dirname(executable) : nullptr;
+  g_autofree gchar* path = bundle ? g_build_filename(bundle, "data", "flutter_assets", "assets", suffix, nullptr) : nullptr;
+  if (!path || !gtk_window_set_icon_from_file(app_window, path, nullptr)) {
+    fl_method_call_respond_error(method_call, "ICON_NOT_FOUND", "应用图标资源不可用", nullptr);
+    return;
+  }
+  fl_method_call_respond_success(method_call, nullptr, nullptr);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -24,6 +52,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  app_window = window;
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -81,6 +110,12 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  FlEngine* engine = fl_view_get_engine(view);
+  FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(engine);
+  app_icon_channel = fl_method_channel_new(messenger, "cn.yanyn.community/app_icon",
+                                           FL_METHOD_CODEC(fl_standard_method_codec_new()));
+  fl_method_channel_set_method_call_handler(app_icon_channel, app_icon_method_call,
+                                           nullptr, nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -127,6 +162,8 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  g_clear_object(&app_icon_channel);
+  app_window = nullptr;
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }

@@ -2,6 +2,7 @@
 //
 // 托盘默认开启：这是客户端常见的后台驻留方式，关掉窗口时留在托盘里；
 // 不想要的人可以在「通用 → 系统设置」里一键关闭，关掉后点 X 就是直接退出。
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,6 +69,11 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
           ? DesktopIcon.classic
           : DesktopIcon.newIcon,
     );
+    try {
+      await setDesktopWindowIcon(desktopIconAsset(state.icon));
+    } catch (error) {
+      debugPrint('初始化应用图标失败：$error');
+    }
   }
 
   Future<void> setTray(bool value) async {
@@ -84,6 +90,7 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
   }
 
   Future<void> setIcon(DesktopIcon value) async {
+    await setDesktopWindowIcon(desktopIconAsset(value));
     state = state.copyWith(icon: value);
     await (await SharedPreferences.getInstance()).setString(
       iconKey,

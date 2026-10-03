@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/state/session.dart';
+import '../../core/network/community_api.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/design.dart';
 import '../../core/window/desktop_settings.dart';
@@ -63,6 +64,12 @@ class SettingsPage extends ConsumerWidget {
       const SectionLabel('通用'),
       SettingsGroup(
         children: [
+          SettingsRow(
+            icon: Icons.notifications_outlined,
+            title: '通知',
+            subtitle: '浏览、评论、点赞、分享和官方消息',
+            onTap: () => openPage(context, const NotificationSettingsPage()),
+          ),
           SettingsRow(
             icon: Icons.settings_outlined,
             title: '系统设置',
@@ -124,6 +131,80 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+class NotificationSettingsPage extends ConsumerStatefulWidget {
+  const NotificationSettingsPage({super.key});
+  @override
+  ConsumerState<NotificationSettingsPage> createState() => _NotificationSettingsPageState();
+}
+
+class _NotificationSettingsPageState extends ConsumerState<NotificationSettingsPage> {
+  static const _labels = <String, String>{
+    'views': '浏览通知',
+    'comments': '评论通知',
+    'likes': '点赞通知',
+    'shares': '分享通知',
+    'official': '官方通知',
+  };
+  final values = <String, bool>{for (final key in _labels.keys) key: true};
+  final busy = <String>{};
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final data = await ref.read(communityProvider).get('/users/me/notification-preferences');
+      final preferences = data['preferences'];
+      if (mounted && preferences is Map) {
+        setState(() {
+          for (final key in _labels.keys) {
+            values[key] = preferences[key] != false;
+          }
+        });
+      }
+    } catch (error) {
+      if (mounted) notice(context, error);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> update(String key, bool value) async {
+    if (busy.contains(key)) return;
+    final previous = values[key] ?? true;
+    setState(() { values[key] = value; busy.add(key); });
+    try {
+      await ref.read(communityProvider).patch('/users/me/notification-preferences', {key: value});
+    } catch (error) {
+      if (mounted) {
+        setState(() => values[key] = previous);
+        notice(context, error);
+      }
+    } finally {
+      if (mounted) setState(() => busy.remove(key));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: const AppNavigationBar(title: Text('通知')),
+    body: SafeArea(
+      child: PageWidth(child: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
+        const SizedBox(height: 8),
+        SettingsGroup(children: _labels.entries.map((entry) => AppSwitchListTile(
+          title: Text(entry.value),
+          value: values[entry.key] ?? true,
+          onChanged: loading || busy.contains(entry.key) ? null : (value) => update(entry.key, value),
+        )).toList()),
+      ])),
+    ),
+  );
 }
 
 class SystemSettingsPage extends ConsumerWidget {

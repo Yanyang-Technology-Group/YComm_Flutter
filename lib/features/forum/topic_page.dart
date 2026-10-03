@@ -39,6 +39,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   Object? error;
   bool busy = true, more = false, hasMore = false;
   bool contentActionBusy = false;
+  int shareCount = 0;
   int generation = 0;
   @override
   void initState() {
@@ -67,6 +68,8 @@ class _TopicPageState extends ConsumerState<TopicPage> {
       final batch = jsonList(data['posts']);
       setState(() {
         topic = Json.from(data['topic']);
+        final counts = data['counts'];
+        shareCount = (counts is Map ? counts['shares'] : 0) as int? ?? 0;
         posts = append ? [...posts, ...batch] : batch;
         hasMore = batch.length == 50;
         final next = (data['likedPostIds'] as List? ?? [])
@@ -134,7 +137,15 @@ class _TopicPageState extends ConsumerState<TopicPage> {
           .read(communityProvider)
           .post('/forum/posts/$id/${liked.contains(id) ? 'unlike' : 'like'}');
       if (mounted) {
-        setState(() => liked.contains(id) ? liked.remove(id) : liked.add(id));
+        setState(() {
+          if (liked.contains(id)) {
+            liked.remove(id);
+            post['likeCount'] = ((post['likeCount'] as num?)?.toInt() ?? 1) - 1;
+          } else {
+            liked.add(id);
+            post['likeCount'] = ((post['likeCount'] as num?)?.toInt() ?? 0) + 1;
+          }
+        });
       }
     } catch (e) {
       if (mounted) notice(context, e);
@@ -342,7 +353,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
             ],
           ),
         AppIconButton(
-          tooltip: '复制讨论链接',
+          tooltip: '复制讨论链接 · $shareCount 次分享',
           onPressed: topic == null
               ? null
               : () async {
@@ -351,12 +362,12 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     final board = boards.firstWhere(
                       (b) => b['id'] == topic!['board_id'],
                     );
-                    if (context.mounted) {
-                      await copyLink(
-                        context,
-                        '/forum/${board['slug']}/${widget.id}',
-                      );
-                    }
+                    if (!context.mounted) return;
+                    await copyLink(context, '/forum/${board['slug']}/${widget.id}');
+                    if (!context.mounted) return;
+                    if (!await requireSession(context, ref) || !context.mounted) return;
+                    final result = await ref.read(communityProvider).post('/forum/topics/${widget.id}/share');
+                    if (mounted) setState(() => shareCount = (result['shareCount'] as num?)?.toInt() ?? shareCount);
                   } catch (e) {
                     if (context.mounted) notice(context, e);
                   }
@@ -524,7 +535,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   ),
                   SizedBox(height: apple ? 14 : 20),
                   if (p['reply_to_post_id'] != null) ...[
-                    const SmallTag('回复讨论中的一条留言'),
+                    SmallTag('回复 #${posts.where((item) => item['id'] == p['reply_to_post_id']).firstOrNull?['position'] ?? '?'}'),
                     const SizedBox(height: 12),
                   ],
                   MarkdownContent(str(p['content_md'])),
@@ -547,7 +558,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               : null,
                           size: 19,
                         ),
-                        label: Text(liked.contains(str(p['id'])) ? '已赞' : '点赞'),
+                        label: Text('${liked.contains(str(p['id'])) ? '已赞' : '点赞'} ${p['likeCount'] ?? 0}'),
                       ),
                       AppTextButton.icon(
                         onPressed: topic!['is_locked'] == true
