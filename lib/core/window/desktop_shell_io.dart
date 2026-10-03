@@ -515,7 +515,7 @@ Widget videoPlayerWindowApp({
     title: argument['title'] as String?,
     softwareSurface: true,
     // 独立窗口是一个独立进程，没有路由栈可退：返回按钮直接退出这个进程。
-    onClose: exit,
+    onClose: () => exit(0),
   ),
 );
 
