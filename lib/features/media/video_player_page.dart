@@ -13,11 +13,16 @@ class VideoPlayerPage extends StatefulWidget {
     required this.url,
     this.title,
     this.onClose,
+    this.softwareSurface = false,
   });
   final String url;
   final String? title;
   /// 独立窗口里用「关闭窗口」，整页路由里用「返回上一页」。
   final VoidCallback? onClose;
+  /// 用软件渲染的视频输出面。desktop_multi_window 的第二引擎里，硬件加速的
+  /// 输出面（Windows 上走 ANGLE 纹理互操作）拿不到帧，表现为「有进度条但画面全黑」，
+  /// 软件输出面在两种窗口里都正常。
+  final bool softwareSurface;
   @override
   State<VideoPlayerPage> createState() => _VideoPlayerPageState();
 }
@@ -30,7 +35,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   void initState() {
     super.initState();
     player = Player();
-    controller = VideoController(player);
+    controller = VideoController(
+      player,
+      configuration: VideoControllerConfiguration(
+        enableHardwareAcceleration: !widget.softwareSurface,
+      ),
+    );
     // 打开即播放；失败不弹错误页，播放器自己会显示加载/错误状态。
     player.open(Media(widget.url));
   }

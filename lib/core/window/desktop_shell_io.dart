@@ -513,6 +513,7 @@ Widget videoPlayerWindowApp({
   home: VideoPlayerPage(
     url: (argument['url'] as String?) ?? '',
     title: argument['title'] as String?,
+    softwareSurface: true,
     // 独立窗口没有路由栈可退，返回按钮直接关掉这扇窗（这是唯一会用到
     // desktop_multi_window 的地方，所以它只出现在桌面实现文件里）。
     onClose: () => WindowController.fromWindowId(windowId).close(),
