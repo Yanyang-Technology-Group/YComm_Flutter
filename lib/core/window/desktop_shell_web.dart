@@ -20,6 +20,7 @@ Future<void> closeWindow() async {}
 Future<void> hideWindow() async {}
 Future<void> showMainWindow() async {}
 Future<void> preventWindowClose(bool prevent) async {}
+Future<void> setWindowOpacity(double value) async {}
 Future<void> setDesktopWindowIcon(String iconAsset) async {}
 
 // ---- GPU 加速（Web 上没有这个概念）----

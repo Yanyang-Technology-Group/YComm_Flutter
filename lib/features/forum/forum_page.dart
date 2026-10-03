@@ -222,24 +222,35 @@ class _ForumPageState extends ConsumerState<ForumPage> {
           ? SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: PressableScale(
-                  onTap: () => compose(boards.value!),
-                  pressedScale: 0.99,
-                  child: Container(
-                    key: const ValueKey('community-composer'),
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '✏ 发点新鲜事',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                // 小小的浮钮挂在左下角，而不是横跨整条底栏。
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: PressableScale(
+                    onTap: () => compose(boards.value!),
+                    pressedScale: 0.96,
+                    child: Container(
+                      key: const ValueKey('community-composer'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '✏ 发点新鲜事',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

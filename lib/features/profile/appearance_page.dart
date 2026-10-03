@@ -2,12 +2,15 @@ import 'profile_page.dart' show SettingsGroup;
 import '../../core/design/adaptive.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoSlider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/design_style.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/design.dart';
+import '../../core/window/desktop_settings.dart';
+import '../../core/window/desktop_shell.dart';
 
 class AppearancePage extends ConsumerWidget {
   const AppearancePage({super.key});
@@ -15,6 +18,8 @@ class AppearancePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(themeControllerProvider);
     final control = ref.read(themeControllerProvider.notifier);
+    final desktopControl = ref.read(desktopSettingsProvider.notifier);
+    final opacity = ref.watch(desktopSettingsProvider).opacity;
     final scheme = Theme.of(context).colorScheme;
     Widget group(Iterable<Widget> children) => isApple(context)
         ? SettingsGroup(children: children.toList())
@@ -126,6 +131,45 @@ class AppearancePage extends ConsumerWidget {
           ),
         ),
       ),
+      // 窗口透明度只对桌面外壳有意义（Web/手机没有可调透明的窗口）。
+      if (isDesktopShell) ...[
+        if (!isApple(context))
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+            child: AppDivider(),
+          ),
+        section('窗口透明度'),
+        group([
+          AppListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 4,
+            ),
+            leading: AppIcon(Icons.tune_rounded, color: scheme.primary),
+            title: const Text('窗口透明度'),
+            subtitle: Text('${(opacity * 100).round()}%'),
+            trailing: SizedBox(
+              width: 170,
+              child: isApple(context)
+                  ? CupertinoSlider(
+                      value: opacity,
+                      min: 0.1,
+                      max: 1,
+                      divisions: 18,
+                      onChanged: desktopControl.setOpacity,
+                    )
+                  : Slider(
+                      value: opacity,
+                      min: 0.1,
+                      max: 1,
+                      divisions: 18,
+                      label: '${(opacity * 100).round()}%',
+                      onChanged: desktopControl.setOpacity,
+                    ),
+            ),
+          ),
+        ]),
+      ],
     ];
     if (isApple(context)) {
       final page = AppleScrollPage(

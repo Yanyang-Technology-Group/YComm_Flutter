@@ -15,6 +15,7 @@ class DesktopSettings {
     this.startup = false,
     this.icon = DesktopIcon.newIcon,
     this.gpu = true,
+    this.opacity = 1,
   });
 
   /// 是否启用系统托盘（关闭窗口时最小化到托盘）。
@@ -33,12 +34,16 @@ class DesktopSettings {
   /// 是否用 GPU（硬件渲染）。默认开启；机器/驱动不支持时会被强制关掉。
   final bool gpu;
 
+  /// 窗口整体透明度（0.1–1.0），默认完全不透明。
+  final double opacity;
+
   DesktopSettings copyWith({
     bool? tray,
     bool? notifications,
     bool? startup,
     DesktopIcon? icon,
     bool? gpu,
+    double? opacity,
   }) =>
       DesktopSettings(
         tray: tray ?? this.tray,
@@ -46,6 +51,7 @@ class DesktopSettings {
         startup: startup ?? this.startup,
         icon: icon ?? this.icon,
         gpu: gpu ?? this.gpu,
+        opacity: opacity ?? this.opacity,
       );
 }
 
@@ -61,6 +67,7 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
   static const notificationsKey = 'ycomm_desktop_notifications';
   static const iconKey = 'ycomm_desktop_icon';
   static const gpuKey = 'ycomm_desktop_gpu';
+  static const opacityKey = 'ycomm_desktop_opacity';
 
   @override
   DesktopSettings build() => const DesktopSettings();
@@ -77,11 +84,17 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
           : DesktopIcon.newIcon,
       // 机器/驱动不支持 GPU 加速时，存过的开关也要按关闭处理。
       gpu: (prefs.getBool(gpuKey) ?? true) && gpuAccelerationSupported(),
+      opacity: (prefs.getDouble(opacityKey) ?? 1).clamp(0.1, 1.0),
     );
     try {
       await setDesktopWindowIcon(desktopIconAsset(state.icon));
     } catch (error) {
       debugPrint('初始化应用图标失败：$error');
+    }
+    try {
+      await setWindowOpacity(state.opacity);
+    } catch (error) {
+      debugPrint('初始化窗口透明度失败：$error');
     }
   }
 
@@ -117,6 +130,21 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
   Future<void> setGpu(bool value) async {
     state = state.copyWith(gpu: value);
     await (await SharedPreferences.getInstance()).setBool(gpuKey, value);
+  }
+
+  /// 调整窗口透明度；拖动过程中就实时生效，同时记住选择。
+  Future<void> setOpacity(double value) async {
+    final opacity = value.clamp(0.1, 1.0);
+    state = state.copyWith(opacity: opacity);
+    try {
+      await setWindowOpacity(opacity);
+    } catch (error) {
+      debugPrint('设置窗口透明度失败：$error');
+    }
+    await (await SharedPreferences.getInstance()).setDouble(
+      opacityKey,
+      opacity,
+    );
   }
 
   /// 打开 / 关闭开机自启动；返回是否真的写成功。

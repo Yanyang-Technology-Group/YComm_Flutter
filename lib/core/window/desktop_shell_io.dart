@@ -156,6 +156,15 @@ Future<void> preventWindowClose(bool prevent) async {
   await windowManager.setPreventClose(prevent);
 }
 
+/// 窗口整体透明度（1.0 = 完全不透明，0.1 = 最淡）。桌面三平台都支持。
+Future<void> setWindowOpacity(double value) async {
+  if (!isDesktopShell) {
+    return;
+  }
+  await _ensureReadyToShow();
+  await windowManager.setOpacity(value.clamp(0.1, 1.0));
+}
+
 /// 切换窗口 / 任务栏 / 启动器图标。
 ///
 /// Windows：只切窗口与任务栏图标（exe 内嵌图标是构建期资源）。window_manager
