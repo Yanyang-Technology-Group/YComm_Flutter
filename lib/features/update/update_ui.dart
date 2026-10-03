@@ -215,6 +215,8 @@ Future<void> _download(
     // 托盘设置本身不动，装完重启后照旧生效。
     await disableTray();
     await preventWindowClose(false);
+    // 客户端自己马上就会被安装器关掉，所以先让独立进程把「正在重启」的小窗顶上来。
+    await showRestartNotice();
     if (context.mounted && await _runInstallerSilently(result.path!)) {
       return;
     }

@@ -454,6 +454,87 @@ Future<bool> setLaunchAtLogin(bool enabled) async {
 
 // ---- 右下角系统通知 ----
 
+// ---- 更新重启提示窗 ----
+
+/// 更新重启提示窗的 PowerShell 脚本。**必须保持纯 ASCII**：Windows PowerShell 5.1
+/// 按 ANSI 读 .ps1，非 ASCII 会变乱码；界面文字走环境变量传进去（环境变量是 UTF-16）。
+const String _restartNoticeScript = r'''
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$global:form = New-Object System.Windows.Forms.Form
+$global:form.Text = $env:YCOMM_NOTICE_TITLE
+$global:form.ClientSize = New-Object System.Drawing.Size(400, 150)
+$global:form.StartPosition = 'CenterScreen'
+$global:form.FormBorderStyle = 'FixedToolWindow'
+$global:form.ShowInTaskbar = $true
+$global:form.TopMost = $true
+$global:label = New-Object System.Windows.Forms.Label
+$global:label.Text = $env:YCOMM_NOTICE_BODY
+$global:label.Dock = 'Fill'
+$global:label.TextAlign = 'MiddleCenter'
+$global:label.Font = New-Object System.Drawing.Font('Microsoft YaHei UI', 10)
+$global:form.Controls.Add($global:label)
+$global:seenGone = $false
+$global:deadline = (Get-Date).AddMinutes(15)
+$global:timer = New-Object System.Windows.Forms.Timer
+$global:timer.Interval = 1000
+$global:timer.Add_Tick({
+  $running = @(Get-Process -Name $env:YCOMM_NOTICE_PROC -ErrorAction SilentlyContinue).Count -gt 0
+  if (-not $running) { $global:seenGone = $true }
+  if ($global:seenGone -and $running) {
+    $global:timer.Stop()
+    $global:form.Close()
+  } elseif ((Get-Date) -gt $global:deadline) {
+    $global:timer.Stop()
+    $global:form.Close()
+  }
+})
+$global:timer.Start()
+[System.Windows.Forms.Application]::Run($global:form)
+''';
+
+/// 更新重启时在最前面放一扇「正在重启」的小窗（Windows）。
+///
+/// 为什么不能由客户端自己画：静默安装要替换的正是客户端的文件，安装器会把本进程
+/// 关掉。所以这扇窗交给一个独立的 PowerShell 进程——它只轮询客户端进程「消失→
+/// 重新出现」，出现就自己关掉；15 分钟兜底，避免安装失败时窗口永远留着。
+Future<void> showRestartNotice() async {
+  if (!Platform.isWindows || !isDesktopShell) {
+    return;
+  }
+  try {
+    final processName = Platform.resolvedExecutable
+        .split(RegExp(r'[\\/]'))
+        .last
+        .replaceAll(RegExp(r'\.exe$', caseSensitive: false), '');
+    final directory = await Directory.systemTemp.createTemp('ycomm_restart');
+    final script = File('${directory.path}\\notice.ps1');
+    await script.writeAsString(_restartNoticeScript);
+    await Process.start(
+      'powershell.exe',
+      <String>[
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-WindowStyle',
+        'Hidden',
+        '-File',
+        script.path,
+      ],
+      environment: <String, String>{
+        ...Platform.environment,
+        'YCOMM_NOTICE_TITLE': '正在重启晏阳社区',
+        'YCOMM_NOTICE_BODY': '正在安装新版本，装好会自动打开，请稍候…',
+        'YCOMM_NOTICE_PROC': processName,
+      },
+      mode: ProcessStartMode.detached,
+    );
+  } catch (error) {
+    debugPrint('显示更新重启提示窗失败：$error');
+  }
+}
+
 /// 弹一条系统通知。点通知会回到窗口。
 Future<void> showDesktopNotification({
   required String title,

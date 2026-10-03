@@ -49,3 +49,5 @@ Future<void> showDesktopNotification({
   required String body,
   VoidCallback? onClick,
 }) async {}
+
+Future<void> showRestartNotice() async {}
