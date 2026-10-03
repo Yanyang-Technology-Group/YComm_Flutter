@@ -8,9 +8,16 @@ import 'package:media_kit_video/media_kit_video.dart';
 /// 桌面端先用同一页，独立播放窗口（desktop_multi_window）是下一步单独提交，
 /// 它需要各平台原生改动，和播放器本身分开验证更稳。
 class VideoPlayerPage extends StatefulWidget {
-  const VideoPlayerPage({super.key, required this.url, this.title});
+  const VideoPlayerPage({
+    super.key,
+    required this.url,
+    this.title,
+    this.onClose,
+  });
   final String url;
   final String? title;
+  /// 独立窗口里用「关闭窗口」，整页路由里用「返回上一页」。
+  final VoidCallback? onClose;
   @override
   State<VideoPlayerPage> createState() => _VideoPlayerPageState();
 }
@@ -56,7 +63,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 child: IconButton(
                   tooltip: '返回',
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.of(context).maybePop(),
+                  onPressed:
+                      widget.onClose ?? () => Navigator.of(context).maybePop(),
                 ),
               ),
             ),

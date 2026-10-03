@@ -59,6 +59,8 @@ dependencies:
   media_kit: ^1.2.0
   media_kit_video: ^1.3.0
   media_kit_libs_video: ^1.0.5
+  # 桌面端「独立播放窗口」：只有 Windows/Linux/macOS 能再开一个 Flutter 窗口。
+  desktop_multi_window: ^0.2.1
   # window_manager 管理自绘标题栏、任务栏可见性与窗口操作。
   # 无参 waitUntilReadyToShow 初始化 Windows 任务栏对象，不主动隐藏窗口。
   # Windows 上它其实不生效（会先读注册表，系统浅色时应用怎么请求都没用），

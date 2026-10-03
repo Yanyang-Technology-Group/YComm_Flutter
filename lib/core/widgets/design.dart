@@ -1,5 +1,7 @@
 import '../design/adaptive.dart';
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import '../../features/media/video_player_page.dart';
 import 'package:flutter/services.dart';
@@ -477,11 +479,7 @@ class InlineVideoCard extends StatelessWidget {
       onTap: () {
         final resolved = resolveSiteUrl(url);
         if (resolved == null) return;
-        // 应用内整页播放：手机端左上角有返回按钮，桌面端随后换成独立播放窗口。
-        openTaskPage<void>(
-          context,
-          VideoPlayerPage(url: resolved.toString(), title: title),
-        );
+        unawaited(_openVideo(context, resolved.toString(), title));
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -516,6 +514,14 @@ class InlineVideoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 桌面端开独立播放窗口（B站客户端那样）；手机端或开窗失败时退回整页播放，
+/// 那一页左上角就是返回按钮。
+Future<void> _openVideo(BuildContext context, String url, String? title) async {
+  if (await openVideoWindow(url, title)) return;
+  if (!context.mounted) return;
+  openTaskPage<void>(context, VideoPlayerPage(url: url, title: title));
 }
 
 Future<void> copyLink(BuildContext context, String path) async {

@@ -52,3 +52,9 @@ Future<void> showDesktopNotification({
 }) async {}
 
 Future<void> showRestartNotice() async {}
+
+// ---- 独立播放窗口（Web 上没有第二个窗口）----
+
+Future<bool> openVideoWindow(String url, String? title) async => false;
+Map<String, dynamic> parseVideoWindowArgument(String raw) =>
+    const <String, dynamic>{};

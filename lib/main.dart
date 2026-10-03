@@ -27,10 +27,18 @@ import 'features/profile/profile_page.dart';
 import 'features/shell/desktop_title_bar.dart';
 import 'features/update/update_ui.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // 帖子内视频播放器（media_kit）必须先初始化，再碰任何 Player。
   MediaKit.ensureInitialized();
+  // 桌面端独立播放窗口：入口参数是 `multi_window <windowId> <json>`，
+  // 这扇窗只跑播放页，不初始化主窗口那一套（托盘/自绘标题栏/后台同步）。
+  if (args.isNotEmpty && args.first == 'multi_window') {
+    final windowId = args.length > 1 ? int.tryParse(args[1]) ?? 0 : 0;
+    final argument = parseVideoWindowArgument(args.length > 2 ? args[2] : '');
+    runApp(videoPlayerWindowApp(windowId: windowId, argument: argument));
+    return;
+  }
   // 渲染模式是启动参数：上次关掉 GPU 加速的话，这次要带着软件渲染开关重新起来。
   await alignGpuAccelerationOnLaunch();
   await ApiClient.initialize();

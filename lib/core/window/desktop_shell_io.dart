@@ -7,9 +7,12 @@
 // startDragging / minimize / maximize / close。
 import 'dart:io'
     show Directory, File, Platform, Process, ProcessStartMode, exit;
+import 'dart:convert' show jsonDecode, jsonEncode;
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart'
     show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
+import 'package:flutter/material.dart' show Rect, Widget;
 import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
@@ -18,6 +21,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'gpu_probe_ffi.dart';
+import '../features/media/video_player_page.dart';
 
 /// 是否是支持托盘与自绘标题栏的桌面平台。
 bool get isDesktopShell =>
@@ -474,6 +478,61 @@ Future<bool> setLaunchAtLogin(bool enabled) async {
 // ---- 右下角系统通知 ----
 
 // ---- 更新重启提示窗 ----
+
+/// 用独立窗口播放视频（Windows/Linux/macOS）。返回是否成功开了新窗口。
+///
+/// 走 desktop_multi_window：新窗口是同一进程里的第二个引擎，入口参数是
+/// `multi_window <windowId> <json>`（见 main()），所以那扇窗只跑播放页，
+/// 不带主窗口的登录态、托盘、自绘标题栏。
+Future<bool> openVideoWindow(String url, String? title) async {
+  if (!isDesktopShell) {
+    return false;
+  }
+  try {
+    final controller = await DesktopMultiWindow.createWindow(
+      jsonEncode(<String, dynamic>{'url': url, 'title': title}),
+    );
+    await controller.setTitle('视频播放 · 晏阳社区');
+    await controller.setFrame(const Rect.fromLTWH(0, 0, 1000, 620));
+    await controller.center();
+    await controller.show();
+    return true;
+  } catch (error) {
+    debugPrint('打开独立播放窗口失败，退回整页播放：$error');
+    return false;
+  }
+}
+
+/// 独立播放窗口里跑的应用（main 识别到 multi_window 参数时调用）。
+Widget videoPlayerWindowApp({
+  required int windowId,
+  required Map<String, dynamic> argument,
+}) => MaterialApp(
+  debugShowCheckedModeBanner: false,
+  title: '视频播放',
+  home: VideoPlayerPage(
+    url: (argument['url'] as String?) ?? '',
+    title: argument['title'] as String?,
+    // 独立窗口没有路由栈可退，返回按钮直接关掉这扇窗（这是唯一会用到
+    // desktop_multi_window 的地方，所以它只出现在桌面实现文件里）。
+    onClose: () => WindowController.fromWindowId(windowId).close(),
+  ),
+);
+
+/// 从子窗口参数里取出播放地址。
+Map<String, dynamic> parseVideoWindowArgument(String raw) {
+  if (raw.isEmpty) {
+    return const <String, dynamic>{};
+  }
+  try {
+    final decoded = jsonDecode(raw);
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : const <String, dynamic>{};
+  } catch (_) {
+    return const <String, dynamic>{};
+  }
+}
 
 /// 更新重启提示窗的 PowerShell 脚本。**必须保持纯 ASCII**：Windows PowerShell 5.1
 /// 按 ANSI 读 .ps1，非 ASCII 会变乱码；界面文字走环境变量传进去（环境变量是 UTF-16）。
