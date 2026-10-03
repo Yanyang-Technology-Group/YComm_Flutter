@@ -231,16 +231,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('正文内容'), findsOneWidget);
   });
-  testWidgets('inline composers accept input and focus reply target', (
+  testWidgets('forum composer entry is a button; reply composer focuses target', (
     tester,
   ) async {
     await app(tester, TestApi());
     expect(find.byType(FloatingActionButton), findsNothing);
-    await tester.enterText(
-      find.byKey(const ValueKey('community-composer')),
-      '新的想法',
-    );
-    expect(tester.testTextInput.isVisible, isTrue);
+    // 底部不再是常驻输入框，而是一枚「发点新鲜事」按钮，点进去才是整页发布
+    // （整页 ComposerPage 本身在 apple_forum_experience_test 里覆盖）。
+    expect(find.byKey(const ValueKey('community-composer')), findsOneWidget);
+    expect(find.textContaining('发点新鲜事'), findsOneWidget);
     await tester.pumpAndSettle();
     await tester.tap(find.text('真实接口讨论'));
     await tester.pumpAndSettle();
