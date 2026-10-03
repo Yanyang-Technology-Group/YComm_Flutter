@@ -14,6 +14,7 @@ class DesktopSettings {
     this.notifications = true,
     this.startup = false,
     this.icon = DesktopIcon.newIcon,
+    this.gpu = true,
   });
 
   /// 是否启用系统托盘（关闭窗口时最小化到托盘）。
@@ -29,17 +30,22 @@ class DesktopSettings {
 
   final DesktopIcon icon;
 
+  /// 是否用 GPU（硬件渲染）。默认开启；机器/驱动不支持时会被强制关掉。
+  final bool gpu;
+
   DesktopSettings copyWith({
     bool? tray,
     bool? notifications,
     bool? startup,
     DesktopIcon? icon,
+    bool? gpu,
   }) =>
       DesktopSettings(
         tray: tray ?? this.tray,
         notifications: notifications ?? this.notifications,
         startup: startup ?? this.startup,
         icon: icon ?? this.icon,
+        gpu: gpu ?? this.gpu,
       );
 }
 
@@ -54,6 +60,7 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
   static const trayKey = 'ycomm_desktop_tray';
   static const notificationsKey = 'ycomm_desktop_notifications';
   static const iconKey = 'ycomm_desktop_icon';
+  static const gpuKey = 'ycomm_desktop_gpu';
 
   @override
   DesktopSettings build() => const DesktopSettings();
@@ -68,6 +75,8 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
       icon: prefs.getString(iconKey) == 'classic'
           ? DesktopIcon.classic
           : DesktopIcon.newIcon,
+      // 机器/驱动不支持 GPU 加速时，存过的开关也要按关闭处理。
+      gpu: (prefs.getBool(gpuKey) ?? true) && gpuAccelerationSupported(),
     );
     try {
       await setDesktopWindowIcon(desktopIconAsset(state.icon));
@@ -96,6 +105,12 @@ class DesktopSettingsController extends Notifier<DesktopSettings> {
       iconKey,
       value == DesktopIcon.classic ? 'classic' : 'new',
     );
+  }
+
+  /// 打开 / 关闭 GPU 加速（需要重启客户端才生效，见 alignGpuAccelerationOnLaunch）。
+  Future<void> setGpu(bool value) async {
+    state = state.copyWith(gpu: value);
+    await (await SharedPreferences.getInstance()).setBool(gpuKey, value);
   }
 
   /// 打开 / 关闭开机自启动；返回是否真的写成功。

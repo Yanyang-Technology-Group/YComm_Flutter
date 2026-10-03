@@ -5,13 +5,18 @@
 // SWP_FRAMECHANGED，**不动 WS_THICKFRAME**，所以隐藏系统标题栏之后窗口边缘
 // 仍然可以拉伸缩放；拖动、最小化、最大化、关闭改由 Flutter 侧调用
 // startDragging / minimize / maximize / close。
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show VoidCallback, debugPrint, kIsWeb;
+import 'dart:io' show Directory, Platform, Process, ProcessStartMode, exit;
+
+import 'package:flutter/foundation.dart'
+    show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
 import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'gpu_probe_ffi.dart';
 
 /// 是否是支持托盘与自绘标题栏的桌面平台。
 bool get isDesktopShell =>
@@ -27,6 +32,8 @@ const double desktopTitleBarHeight = 38;
 TrayIcon? _trayIcon;
 Menu? _trayMenu;
 bool _readyToShow = false;
+/// 窗口当前是否收在托盘里（用来判断延迟补摘任务栏按钮还要不要做）。
+bool _windowHidden = false;
 
 Future<void> _ensureReadyToShow() async {
   if (_readyToShow || !isDesktopShell) return;
@@ -101,13 +108,32 @@ Future<void> closeWindow() async {
 }
 
 /// 隐藏窗口（最小化到托盘）。
+///
+/// 顺序很关键：window_manager 的 Windows 实现里 SetSkipTaskbar 会先
+/// ShowWindow(SW_HIDE)、改扩展样式（WS_EX_TOOLWINDOW / WS_EX_APPWINDOW），
+/// 再按**调用前**的可见性把窗口恢复显示。先摘任务栏再隐藏时，这次「恢复显示」
+/// 会把任务栏按钮重新带出来，用户看到的就是「收进托盘了，任务栏按钮还在」。
+/// 所以先隐藏：此时可见性已经是 false，改完样式的恢复动作仍是 SW_HIDE。
 Future<void> hideWindow() async {
   if (!isDesktopShell) {
     return;
   }
   await _ensureReadyToShow();
-  await windowManager.setSkipTaskbar(true);
   await windowManager.hide();
+  _windowHidden = true;
+  await windowManager.setSkipTaskbar(true);
+  // 有些 shell 要等隐藏动画/重排结束才刷新任务栏，稍后再补一次；
+  // 这期间用户若已经把窗口叫回来（_windowHidden=false），这次就不动手。
+  Future<void>.delayed(const Duration(milliseconds: 150), () async {
+    if (!_windowHidden || !isDesktopShell) {
+      return;
+    }
+    try {
+      await windowManager.setSkipTaskbar(true);
+    } catch (error) {
+      debugPrint('再次摘掉任务栏按钮失败：$error');
+    }
+  });
 }
 
 Future<void> showMainWindow() async {
@@ -115,8 +141,9 @@ Future<void> showMainWindow() async {
     return;
   }
   await _ensureReadyToShow();
-  await windowManager.show();
+  _windowHidden = false;
   await windowManager.setSkipTaskbar(false);
+  await windowManager.show();
   await windowManager.focus();
 }
 
@@ -140,6 +167,104 @@ Future<void> setDesktopWindowIcon(String iconAsset) async {
 }
 
 // ---- 系统托盘 ----
+
+// ---- GPU 加速 ----
+
+/// 渲染模式是启动参数，进程跑起来就改不了，所以用一个环境变量记住
+/// 「这个进程是按哪种模式起来的」。
+const _gpuModeEnvKey = 'YCOMM_GPU_MODE';
+/// 引擎启动时读的开关环境变量（shell/common/switches.cc 的 env 通道）。
+const _softwareRenderingSwitch = 'FLUTTER_ENGINE_SWITCH_1';
+/// 与 DesktopSettingsController.gpuKey 保持一致（启动早期只读一次 prefs）。
+const _gpuPrefsKey = 'ycomm_desktop_gpu';
+
+bool? _gpuSupportedCache;
+
+/// 这台机器/驱动是否真的支持硬件加速。
+///
+/// macOS：Metal 在受支持的 macOS 上恒定可用。
+/// Linux：有 DRI 设备（/dev/dri）才谈得上硬件渲染，纯软件环境没有这个目录。
+/// Windows：问 D3D11 要一个硬件设备。
+bool gpuAccelerationSupported() {
+  if (!isDesktopShell) {
+    return false;
+  }
+  final cached = _gpuSupportedCache;
+  if (cached != null) {
+    return cached;
+  }
+  var supported = false;
+  try {
+    if (Platform.isMacOS) {
+      supported = true;
+    } else if (Platform.isLinux) {
+      supported = Directory('/dev/dri').existsSync();
+    } else if (Platform.isWindows) {
+      supported = windowsHasHardwareGpu();
+    }
+  } catch (error) {
+    debugPrint('探测 GPU 加速能力失败：$error');
+    supported = false;
+  }
+  _gpuSupportedCache = supported;
+  return supported;
+}
+
+/// 当前进程是不是按「软件渲染」起来的。
+bool get runningWithoutGpuAcceleration =>
+    isDesktopShell && Platform.environment[_gpuModeEnvKey] == 'software';
+
+/// 带上新的渲染开关重启客户端；返回是否成功拉起新进程。
+///
+/// 关掉 GPU 加速时把引擎开关塞进环境变量，子进程启动时引擎就会按软件渲染初始化。
+Future<bool> relaunchWithGpuAcceleration(bool gpu) async {
+  if (!isDesktopShell) {
+    return false;
+  }
+  try {
+    final environment = Map<String, String>.from(Platform.environment);
+    environment[_gpuModeEnvKey] = gpu ? 'gpu' : 'software';
+    if (gpu) {
+      environment.remove(_softwareRenderingSwitch);
+    } else {
+      environment[_softwareRenderingSwitch] = 'enable-software-rendering';
+    }
+    await Process.start(
+      _launchAtLoginExecutable(),
+      const <String>[],
+      environment: environment,
+      mode: ProcessStartMode.detached,
+    );
+    return true;
+  } catch (error) {
+    debugPrint('按新的渲染模式重启失败：$error');
+    return false;
+  }
+}
+
+/// 启动时对齐渲染模式：上次关掉了 GPU 加速、这次却不是带着开关起来的，
+/// 就自己带开关重启一次（只做一次：子进程带着标记，不会再触发）。
+///
+/// 只在正式包里做，避免打断 flutter run / 调试会话。
+Future<void> alignGpuAccelerationOnLaunch() async {
+  if (!isDesktopShell || !kReleaseMode || !gpuAccelerationSupported()) {
+    return;
+  }
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_gpuPrefsKey) ?? true) {
+      return;
+    }
+    if (runningWithoutGpuAcceleration) {
+      return;
+    }
+    if (await relaunchWithGpuAcceleration(false)) {
+      exit(0);
+    }
+  } catch (error) {
+    debugPrint('对齐 GPU 加速设置失败：$error');
+  }
+}
 
 /// 打开托盘。
 Future<void> enableTray({

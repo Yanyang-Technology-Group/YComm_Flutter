@@ -22,6 +22,13 @@ Future<void> showMainWindow() async {}
 Future<void> preventWindowClose(bool prevent) async {}
 Future<void> setDesktopWindowIcon(String iconAsset) async {}
 
+// ---- GPU 加速（Web 上没有这个概念）----
+
+bool gpuAccelerationSupported() => false;
+bool get runningWithoutGpuAcceleration => false;
+Future<bool> relaunchWithGpuAcceleration(bool gpu) async => false;
+Future<void> alignGpuAccelerationOnLaunch() async {}
+
 Future<void> enableTray({
   required VoidCallback onShowWindow,
   required VoidCallback onCheckUpdate,

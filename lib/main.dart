@@ -28,6 +28,8 @@ import 'features/update/update_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 渲染模式是启动参数：上次关掉 GPU 加速的话，这次要带着软件渲染开关重新起来。
+  await alignGpuAccelerationOnLaunch();
   await ApiClient.initialize();
   // 桌面端：初始化窗口（自绘标题栏）、通知，以及标题栏跟随主题。
   await setupDesktopShell();

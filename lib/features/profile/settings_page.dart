@@ -215,6 +215,7 @@ class SystemSettingsPage extends ConsumerWidget {
     final settings = ref.watch(desktopSettingsProvider);
     final control = ref.read(desktopSettingsProvider.notifier);
     final scheme = Theme.of(context).colorScheme;
+    final gpuSupported = gpuAccelerationSupported();
     return AppScaffold(
       appBar: const AppNavigationBar(title: Text('系统设置')),
       body: SafeArea(
@@ -243,6 +244,24 @@ class SystemSettingsPage extends ConsumerWidget {
                   AppSwitchListTile(title: const Text('开机自启动'), subtitle: const Text('登录系统后自动启动客户端'), value: settings.startup, onChanged: (value) async {
                     if (!await control.setStartup(value) && context.mounted) appNotice(context, '设置开机自启动失败，可能被系统策略拦下了');
                   }),
+                  AppSwitchListTile(
+                    title: const Text('GPU 加速'),
+                    subtitle: Text(
+                      gpuSupported
+                          ? '用显卡渲染界面；关闭后改用软件渲染，重启客户端后生效'
+                          : '当前设备或驱动不支持硬件加速，已强制关闭',
+                    ),
+                    value: gpuSupported && settings.gpu,
+                    // 探测不支持时置灰：开关状态由机器能力决定，不给用户打开的机会。
+                    onChanged: gpuSupported
+                        ? (value) async {
+                            await control.setGpu(value);
+                            if (context.mounted) {
+                              appNotice(context, value ? 'GPU 加速已开启，重启客户端后生效' : 'GPU 加速已关闭，重启客户端后生效');
+                            }
+                          }
+                        : null,
+                  ),
                 ]),
               ],
             ],
