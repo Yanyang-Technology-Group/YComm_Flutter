@@ -3,9 +3,13 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  desktop_multi_window
   local_notifier
+  media_kit_libs_linux
+  media_kit_video
   screen_retriever_linux
   url_launcher_linux
+  volume_controller
   webview_all_linux
   window_manager
 )

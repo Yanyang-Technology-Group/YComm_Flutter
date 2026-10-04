@@ -20,6 +20,7 @@ import 'core/theme/theme_controller.dart';
 import 'core/window/desktop_settings.dart';
 import 'core/window/desktop_shell.dart';
 import 'core/window/title_bar.dart';
+import 'features/auth/verification_required_page.dart';
 import 'features/downloads/downloads_page.dart';
 import 'features/forum/forum_page.dart';
 import 'features/notifications/notifications_page.dart';
@@ -299,6 +300,11 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    // 未验证邮箱 / 待确认新设备：整个壳层换成引导页（服务端这些请求全是 403）。
+    final gate = ref.watch(accountGateProvider).value;
+    if (gate != null && gate.isBlocked) {
+      return VerificationRequiredView(gate: gate);
+    }
     // 桌面端系统标题栏跟随应用主题（Windows 11 上连颜色一起染）。
     // 带值比较，只在明暗或配色真的变化时调用一次平台通道。
     final shellTheme = Theme.of(context);

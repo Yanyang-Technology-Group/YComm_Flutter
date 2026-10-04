@@ -10,6 +10,8 @@ import '../../core/widgets/design.dart';
 /// 登录设备管理（三级页）：我的 → 设置 → 账号安全 → 登录设备管理。
 ///
 /// 一次登录 = 一条会话；列出当前账号的有效会话，标记当前设备，可退出其他设备。
+/// 另列出**已确认的设备**（新设备登录时在邮件里确认过的那台）：撤销后那台设备
+/// 下次登录要重新用邮箱确认，它上面的登录也会立刻失效。
 /// 当前会话不提供远程退出 —— 用「我的」页的「退出登录」。
 class LoginDevicesPage extends ConsumerStatefulWidget {
   const LoginDevicesPage({super.key});
@@ -21,6 +23,9 @@ class LoginDevicesPage extends ConsumerStatefulWidget {
 class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
   /// null = 首屏加载中；加载失败且没有旧数据时配合 [_error] 显示重试。
   List<Json>? _sessions;
+
+  /// 已确认的设备（受信任设备）。
+  List<Json>? _devices;
   Object? _error;
   bool _busy = false;
   String? _busyId;
@@ -34,15 +39,58 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
   Future<void> _load() async {
     try {
       final data = await ref.read(communityProvider).get('/auth/sessions');
+      final trusted = await ref
+          .read(communityProvider)
+          .get('/auth/trusted-devices');
       if (!mounted) return;
       setState(() {
         _sessions = jsonList(data['sessions']);
+        _devices = jsonList(trusted['devices']);
         _error = null;
       });
     } catch (error) {
       if (!mounted) return;
       // 失败时保留旧列表，只提示并提供重试。
       setState(() => _error = error);
+    }
+  }
+
+  Future<void> _revokeDevice(Json device) async {
+    final id = str(device['id']);
+    final label = str(device['label'], '未知设备');
+    final yes = await appShowDialog<bool>(
+      context: context,
+      builder: (c) => AppAlertDialog(
+        title: const Text('撤销这台设备的信任？'),
+        content: Text('撤销「$label」后，该设备上的登录会立刻失效，下次登录需要用邮箱重新确认。'),
+        actions: [
+          AppTextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('取消'),
+          ),
+          AppTextButton(
+            onPressed: () => Navigator.pop(c, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('确认撤销'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    setState(() => _busyId = id);
+    try {
+      await ref
+          .read(communityProvider)
+          .delete('/auth/trusted-devices/${Uri.encodeComponent(id)}');
+      if (!mounted) return;
+      await _load();
+      if (mounted) notice(context, '已撤销该设备。');
+    } catch (error) {
+      if (mounted) notice(context, error);
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
@@ -147,12 +195,14 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
               ),
               (final list?, _) => _SessionList(
                 sessions: list,
+                devices: _devices ?? const <Json>[],
                 error: _error,
                 busy: _busy,
                 busyId: _busyId,
                 onRetry: _load,
                 onRevokeOne: _revokeOne,
                 onRevokeOthers: _revokeOthers,
+                onRevokeDevice: _revokeDevice,
               ),
             }
           : SafeArea(
@@ -162,12 +212,14 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
                   (null, final error?) => ErrorPanel(error, _load),
                   (final list?, _) => _SessionList(
                     sessions: list,
+                    devices: _devices ?? const <Json>[],
                     error: _error,
                     busy: _busy,
                     busyId: _busyId,
                     onRetry: _load,
                     onRevokeOne: _revokeOne,
                     onRevokeOthers: _revokeOthers,
+                    onRevokeDevice: _revokeDevice,
                   ),
                 },
               ),
@@ -179,21 +231,25 @@ class _LoginDevicesPageState extends ConsumerState<LoginDevicesPage> {
 class _SessionList extends StatelessWidget {
   const _SessionList({
     required this.sessions,
+    required this.devices,
     required this.error,
     required this.busy,
     required this.busyId,
     required this.onRetry,
     required this.onRevokeOne,
     required this.onRevokeOthers,
+    required this.onRevokeDevice,
   });
 
   final List<Json> sessions;
+  final List<Json> devices;
   final Object? error;
   final bool busy;
   final String? busyId;
   final Future<void> Function() onRetry;
   final Future<void> Function(Json session) onRevokeOne;
   final Future<void> Function() onRevokeOthers;
+  final Future<void> Function(Json device) onRevokeDevice;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +290,31 @@ class _SessionList extends StatelessWidget {
             busyId: busyId,
             operating: operating,
             onRevoke: () => onRevokeOne(session),
+          ),
+          const SizedBox(height: 12),
+        ],
+      const SizedBox(height: 20),
+      Text('受信任设备', style: _titleStyle(context)),
+      const SizedBox(height: 8),
+      Text(
+        '新设备第一次登录时需要在邮件里确认一次，确认过的设备记在这里。'
+        '撤销之后，那台设备上的登录会立刻失效，下次登录要重新用邮箱确认。',
+        style: _metaStyle(context),
+      ),
+      const SizedBox(height: 12),
+      if (devices.isEmpty)
+        StatePanel(
+          title: '还没有已确认的设备',
+          message: '在新设备上登录并完成邮件确认后，它会出现在这里。',
+          icon: Icons.devices_other_outlined,
+        )
+      else
+        for (final device in devices) ...[
+          _TrustedDeviceCard(
+            device: device,
+            operating: operating,
+            busyId: busyId,
+            onRevoke: () => onRevokeDevice(device),
           ),
           const SizedBox(height: 12),
         ],
@@ -348,6 +429,59 @@ class _MetaLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text('$label：$value', style: _metaStyle(context));
+  }
+}
+
+/// 一台已确认的设备：展示名、首次确认/最近使用时间，以及「撤销信任」。
+class _TrustedDeviceCard extends StatelessWidget {
+  const _TrustedDeviceCard({
+    required this.device,
+    required this.operating,
+    required this.busyId,
+    required this.onRevoke,
+  });
+
+  final Json device;
+  final bool operating;
+  final String? busyId;
+  final Future<void> Function() onRevoke;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = str(device['id']);
+    final scheme = Theme.of(context).colorScheme;
+    final apple = appleTokensOf(context);
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(apple != null ? AppleSpacing.lg : 16),
+      decoration: apple != null
+          ? BoxDecoration(
+              color: apple.cardBackground,
+              borderRadius: BorderRadius.circular(AppleRadius.card),
+            )
+          : BoxDecoration(
+              color: scheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: .5),
+              ),
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(str(device['label'], '未知设备'), style: _titleStyle(context)),
+          const SizedBox(height: 10),
+          _MetaLine(label: '首次确认', value: _date(device['firstSeenAt'])),
+          _MetaLine(label: '最近使用', value: _date(device['lastSeenAt'])),
+          const SizedBox(height: 12),
+          AppOutlinedButton(
+            onPressed: operating ? null : () => onRevoke(),
+            style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+            child: Text(busyId == id ? '处理中…' : '撤销信任'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
