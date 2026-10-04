@@ -56,3 +56,6 @@ app.*.map.json
 .env.*
 *.jks
 *.keystore
+
+# 临时草稿目录（图标等素材先放这里，不发版就不该进仓库）
+/temp/
