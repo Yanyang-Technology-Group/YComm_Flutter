@@ -69,7 +69,6 @@ void main() {
     testWidgets('appearance offers WinUI only on native Windows ($platform)', (
       tester,
     ) async {
-      debugDefaultTargetPlatformOverride = platform;
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await tester.pumpWidget(
@@ -100,6 +99,6 @@ void main() {
         expect(prefs.getString(ThemeController.styleKey), 'winui');
       }
       expect(tester.takeException(), isNull);
-    });
+    }, variant: TargetPlatformVariant.only(platform));
   }
 }

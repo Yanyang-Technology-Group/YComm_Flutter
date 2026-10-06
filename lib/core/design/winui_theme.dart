@@ -105,7 +105,79 @@ bool isWinui(BuildContext context) => winuiTokensOf(context) != null;
 TextStyle _winuiFont(TextStyle style) => style.copyWith(
   fontFamily: winuiFontFamily,
   fontFamilyFallback: winuiFontFallback,
+  letterSpacing: 0,
 );
+
+TextTheme _winuiTextTheme(TextTheme base, ColorScheme scheme) {
+  TextStyle styled(
+    TextStyle original, {
+    double? size,
+    double? height,
+    FontWeight? weight,
+    Color? color,
+  }) => _winuiFont(
+    original.copyWith(
+      fontSize: size,
+      height: height,
+      fontWeight: weight,
+      color: color ?? scheme.onSurface,
+    ),
+  );
+
+  // Keep each role's inheritance so Material theme transitions can lerp it.
+  return TextTheme(
+    displayLarge: styled(base.displayLarge!),
+    displayMedium: styled(base.displayMedium!),
+    displaySmall: styled(base.displaySmall!),
+    headlineLarge: styled(
+      base.headlineLarge!,
+      size: 32,
+      height: 1.25,
+      weight: FontWeight.w600,
+    ),
+    headlineMedium: styled(
+      base.headlineMedium!,
+      size: 28,
+      height: 1.3,
+      weight: FontWeight.w600,
+    ),
+    headlineSmall: styled(
+      base.headlineSmall!,
+      size: 24,
+      height: 1.3,
+      weight: FontWeight.w600,
+    ),
+    titleLarge: styled(
+      base.titleLarge!,
+      size: 20,
+      height: 1.4,
+      weight: FontWeight.w600,
+    ),
+    titleMedium: styled(
+      base.titleMedium!,
+      size: 16,
+      height: 1.4,
+      weight: FontWeight.w600,
+    ),
+    titleSmall: styled(
+      base.titleSmall!,
+      size: 14,
+      height: 1.4,
+      weight: FontWeight.w600,
+    ),
+    bodyLarge: styled(base.bodyLarge!, size: 16, height: 1.5),
+    bodyMedium: styled(base.bodyMedium!, size: 14, height: 1.4),
+    bodySmall: styled(
+      base.bodySmall!,
+      size: 12,
+      height: 1.4,
+      color: scheme.onSurfaceVariant,
+    ),
+    labelLarge: styled(base.labelLarge!, size: 14, height: 1.4),
+    labelMedium: styled(base.labelMedium!, size: 12, height: 1.4),
+    labelSmall: styled(base.labelSmall!, size: 11, height: 1.4),
+  );
+}
 
 /// WinUI appearance rendered by Flutter, with shared brand colours and semantics.
 ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
@@ -127,55 +199,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
     onInverseSurface: dark ? const Color(0xFF1A1A1A) : Colors.white,
     surfaceTint: Colors.transparent,
   );
-  final text = base.textTheme
-      .copyWith(
-        headlineLarge: const TextStyle(
-          fontSize: 32,
-          height: 1.25,
-          fontWeight: FontWeight.w600,
-        ),
-        headlineMedium: const TextStyle(
-          fontSize: 28,
-          height: 1.3,
-          fontWeight: FontWeight.w600,
-        ),
-        headlineSmall: const TextStyle(
-          fontSize: 24,
-          height: 1.3,
-          fontWeight: FontWeight.w600,
-        ),
-        titleLarge: const TextStyle(
-          fontSize: 20,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
-        ),
-        titleMedium: const TextStyle(
-          fontSize: 16,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
-        ),
-        titleSmall: const TextStyle(
-          fontSize: 14,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
-        ),
-        bodyLarge: const TextStyle(fontSize: 16, height: 1.5),
-        bodyMedium: const TextStyle(fontSize: 14, height: 1.4),
-        labelLarge: const TextStyle(fontSize: 14, height: 1.4),
-        labelMedium: const TextStyle(fontSize: 12, height: 1.4),
-        labelSmall: const TextStyle(fontSize: 11, height: 1.4),
-      )
-      .apply(
-        fontFamily: winuiFontFamily,
-        fontFamilyFallback: winuiFontFallback,
-        bodyColor: scheme.onSurface,
-        displayColor: scheme.onSurface,
-      )
-      .copyWith(
-        bodySmall: _winuiFont(
-          TextStyle(fontSize: 12, height: 1.4, color: scheme.onSurfaceVariant),
-        ),
-      );
+  final text = _winuiTextTheme(base.textTheme, scheme);
   final controlShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(4),
   );
@@ -257,7 +281,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
     textTheme: text,
-    primaryTextTheme: text,
+    primaryTextTheme: _winuiTextTheme(base.primaryTextTheme, scheme),
     extensions: [...base.extensions.values, tokens],
     appBarTheme: AppBarTheme(
       backgroundColor: tokens.canvas,
@@ -505,7 +529,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       elevation: 0,
       indicatorColor: scheme.primaryContainer,
       indicatorShape: controlShape,
-      labelTextStyle: WidgetStatePropertyAll(text.labelMedium),
+      labelTextStyle: WidgetStatePropertyAll(
+        text.labelMedium?.copyWith(inherit: true),
+      ),
     ),
     drawerTheme: DrawerThemeData(
       backgroundColor: tokens.canvas,

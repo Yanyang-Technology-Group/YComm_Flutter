@@ -253,6 +253,23 @@ void main() {
     },
   );
 
+  test('WinUI and Material interpolate in both directions', () {
+    for (final brightness in Brightness.values) {
+      final material = buildTheme(ThemeColour.azure, brightness);
+      final winui = buildWinuiTheme(ThemeColour.azure, brightness);
+      for (final progress in [0.0, 0.25, 0.5, 0.75, 1.0]) {
+        expect(
+          () => ThemeData.lerp(material, winui, progress),
+          returnsNormally,
+        );
+        expect(
+          () => ThemeData.lerp(winui, material, progress),
+          returnsNormally,
+        );
+      }
+    }
+  });
+
   testWidgets(
     'compact button keeps its accessible hit area outside the painted control',
     (tester) async {
