@@ -46,7 +46,7 @@ const _chinaRed = ThemeAccent(
 /// seed 就是网站浅色模式下的 --accent。
 enum ThemeColour {
   azure('azure', '晏阳蓝', Color(0xFF5D94E8)),
-  red('red', '中国红', Color(0xFFFF0000), accent: _chinaRed),
+  red('red', '玫瑰红', Color(0xFFFF0000), accent: _chinaRed),
   pink('pink', '猛男粉', Color(0xFFF0899A)),
   mint('mint', '纳西妲绿', Color(0xFF62B35C)),
   orange('orange', '活力橙', Color(0xFFEC8A2E)),

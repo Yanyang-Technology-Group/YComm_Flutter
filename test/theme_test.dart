@@ -31,7 +31,7 @@ void main() {
     test('中国红在晏阳蓝之后，取值是网站的 --accent', () {
       expect(ThemeColour.values[0], ThemeColour.azure);
       expect(ThemeColour.values[1], ThemeColour.red);
-      expect(ThemeColour.red.label, '中国红');
+      expect(ThemeColour.red.label, '玫瑰红');
       expect(ThemeColour.red.id, 'red');
       expect(ThemeColour.red.seed, const Color(0xFFFF0000));
     });
