@@ -200,6 +200,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
     surfaceTint: Colors.transparent,
   );
   final text = _winuiTextTheme(base.textTheme, scheme);
+  // Component defaults come from the localized Theme.of(context), whose styles
+  // are complete. Match that inheritance for their own implicit animations.
+  TextStyle? controlText(TextStyle? style) => style?.copyWith(inherit: false);
   final controlShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(4),
   );
@@ -239,7 +242,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
     padding: const WidgetStatePropertyAll(
       EdgeInsets.symmetric(horizontal: 12, vertical: 4),
     ),
-    textStyle: WidgetStatePropertyAll(text.labelLarge),
+    textStyle: WidgetStatePropertyAll(controlText(text.labelLarge)),
     shape: WidgetStatePropertyAll(controlShape),
     overlayColor: WidgetStateProperty.resolveWith(overlay),
     elevation: const WidgetStatePropertyAll(0),
@@ -292,7 +295,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       centerTitle: false,
       toolbarHeight: 48,
       titleTextStyle: text.titleMedium,
-      toolbarTextStyle: text.bodyMedium,
+      toolbarTextStyle: controlText(text.bodyMedium),
       iconTheme: IconThemeData(color: scheme.onSurface, size: 20),
       actionsIconTheme: IconThemeData(color: scheme.onSurface, size: 20),
     ),
@@ -368,8 +371,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       isDense: true,
       constraints: const BoxConstraints(minHeight: 36),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      hintStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-      labelStyle: text.bodyMedium,
+      hintStyle: controlText(text.bodyMedium)
+          ?.copyWith(color: scheme.onSurfaceVariant),
+      labelStyle: controlText(text.bodyMedium),
       border: inputBorder(tokens.stroke),
       enabledBorder: inputBorder(tokens.stroke),
       disabledBorder: inputBorder(tokens.stroke.withValues(alpha: 0.6)),
@@ -388,9 +392,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 12),
       ),
-      textStyle: WidgetStatePropertyAll(text.bodyMedium),
+      textStyle: WidgetStatePropertyAll(controlText(text.bodyMedium)),
       hintStyle: WidgetStatePropertyAll(
-        text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        controlText(text.bodyMedium)?.copyWith(color: scheme.onSurfaceVariant),
       ),
     ),
     listTileTheme: ListTileThemeData(
@@ -404,12 +408,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       iconColor: scheme.onSurfaceVariant,
       selectedColor: scheme.onSurface,
       selectedTileColor: scheme.primaryContainer,
-      // ListTile's default styles are fully resolved by Theme.of(context).
-      titleTextStyle: text.bodyMedium?.copyWith(inherit: false),
-      subtitleTextStyle: text.bodySmall?.copyWith(
-        inherit: false,
-        color: scheme.onSurfaceVariant,
-      ),
+      titleTextStyle: controlText(text.bodyMedium),
+      subtitleTextStyle: controlText(text.bodySmall)
+          ?.copyWith(color: scheme.onSurfaceVariant),
     ),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith(
@@ -475,7 +476,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       selectedColor: scheme.primaryContainer,
       disabledColor: tokens.hover,
       checkmarkColor: scheme.primary,
-      labelStyle: text.bodyMedium,
+      labelStyle: controlText(text.bodyMedium),
       side: BorderSide(color: tokens.stroke),
       shape: controlShape,
       elevation: 0,
@@ -491,8 +492,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       dividerHeight: 1,
       labelColor: scheme.onSurface,
       unselectedLabelColor: scheme.onSurfaceVariant,
-      labelStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-      unselectedLabelStyle: text.labelLarge,
+      labelStyle: controlText(text.labelLarge)
+          ?.copyWith(fontWeight: FontWeight.w600),
+      unselectedLabelStyle: controlText(text.labelLarge),
       overlayColor: WidgetStateProperty.resolveWith(overlay),
       splashFactory: NoSplash.splashFactory,
       splashBorderRadius: BorderRadius.circular(4),
@@ -507,10 +509,9 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
         color: scheme.onSurfaceVariant,
         size: 20,
       ),
-      selectedLabelTextStyle: text.bodyMedium,
-      unselectedLabelTextStyle: text.bodyMedium?.copyWith(
-        color: scheme.onSurfaceVariant,
-      ),
+      selectedLabelTextStyle: controlText(text.bodyMedium),
+      unselectedLabelTextStyle: controlText(text.bodyMedium)
+          ?.copyWith(color: scheme.onSurfaceVariant),
     ),
     navigationDrawerTheme: NavigationDrawerThemeData(
       backgroundColor: tokens.canvas,
@@ -519,7 +520,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       indicatorColor: scheme.primaryContainer,
       indicatorShape: controlShape,
       indicatorSize: const Size(220, 40),
-      labelTextStyle: WidgetStatePropertyAll(text.bodyMedium),
+      labelTextStyle: WidgetStatePropertyAll(controlText(text.bodyMedium)),
       iconTheme: WidgetStatePropertyAll(
         IconThemeData(color: scheme.onSurface, size: 20),
       ),
@@ -546,8 +547,8 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 8,
       shape: surfaceShape,
-      titleTextStyle: text.titleLarge,
-      contentTextStyle: text.bodyMedium,
+      titleTextStyle: controlText(text.titleLarge),
+      contentTextStyle: controlText(text.bodyMedium),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: tokens.elevated,
@@ -565,7 +566,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       elevation: 8,
       shape: surfaceShape,
       menuPadding: const EdgeInsets.all(4),
-      textStyle: text.bodyMedium,
+      textStyle: controlText(text.bodyMedium),
       iconColor: scheme.onSurface,
       iconSize: 20,
     ),
@@ -592,7 +593,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: tokens.stroke),
       ),
-      textStyle: text.bodySmall?.copyWith(color: scheme.onSurface),
+      textStyle: controlText(text.bodySmall)?.copyWith(color: scheme.onSurface),
       constraints: const BoxConstraints(minHeight: 28),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       waitDuration: const Duration(milliseconds: 700),
@@ -602,7 +603,7 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       backgroundColor: tokens.elevated,
       elevation: 4,
       shape: surfaceShape,
-      contentTextStyle: text.bodyMedium,
+      contentTextStyle: controlText(text.bodyMedium),
       actionTextColor: scheme.primary,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
