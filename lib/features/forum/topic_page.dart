@@ -372,17 +372,20 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                       '/forum/${board['slug']}/${widget.id}',
                     );
                     if (!context.mounted) return;
-                    if (!await requireSession(context, ref) || !context.mounted)
+                    if (!await requireSession(context, ref) ||
+                        !context.mounted) {
                       return;
+                    }
                     final result = await ref
                         .read(communityProvider)
                         .post('/forum/topics/${widget.id}/share');
-                    if (mounted)
+                    if (mounted) {
                       setState(
                         () => shareCount =
                             (result['shareCount'] as num?)?.toInt() ??
                             shareCount,
                       );
+                    }
                   } catch (e) {
                     if (context.mounted) notice(context, e);
                   }

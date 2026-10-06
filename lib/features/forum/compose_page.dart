@@ -238,16 +238,18 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                                 ),
                                 initialDate: now.add(const Duration(hours: 1)),
                               );
-                              if (pickedDate == null || !context.mounted)
+                              if (pickedDate == null || !context.mounted) {
                                 return;
+                              }
                               final pickedTime = await showTimePicker(
                                 context: context,
                                 initialTime: TimeOfDay.fromDateTime(
                                   now.add(const Duration(hours: 1)),
                                 ),
                               );
-                              if (pickedTime == null || !context.mounted)
+                              if (pickedTime == null || !context.mounted) {
                                 return;
+                              }
                               final publishAt = DateTime(
                                 pickedDate.year,
                                 pickedDate.month,
