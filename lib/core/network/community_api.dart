@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 
 import 'api_client.dart';
 import 'api_result.dart';
@@ -35,6 +36,17 @@ class CommunityApi {
   Future<Json> patch(String path, Json data) async =>
       unwrap(await client.patch(path, data: data));
   Future<Json> delete(String path) async => unwrap(await client.delete(path));
+  Future<Json> uploadMedia(
+    MultipartFile file, {
+    required bool video,
+    ProgressCallback? onSendProgress,
+  }) async => unwrap(
+    await client.upload(
+      video ? '/uploads/videos' : '/uploads/images',
+      file,
+      onSendProgress: onSendProgress,
+    ),
+  );
   Future<List<Json>> boards() async =>
       jsonList((await get('/forum/boards'))['boards']);
   Future<List<Json>> topics(String slug) async => jsonList(

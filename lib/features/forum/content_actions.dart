@@ -3,6 +3,7 @@ import '../../core/design/adaptive.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/network/community_api.dart';
+import '../../core/widgets/media_upload_button.dart';
 import '../admin/admin_access.dart';
 
 bool canModerateTopics(Json? user) => AdminAccess(user).isStaff;
@@ -86,6 +87,8 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
   late final TextEditingController controller = TextEditingController(
     text: widget.initial,
   );
+  bool uploading = false;
+  bool get blocked => busy || uploading;
   bool exiting = false, busy = false;
   Object? error;
 
@@ -96,9 +99,12 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
   }
 
   Future<void> cancel() async {
-    if (busy) return;
+    if (blocked) return;
     if (controller.text == widget.initial) {
-      Navigator.pop(context);
+      setState(() => exiting = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pop(context);
+      });
       return;
     }
     final discard = await confirmContentAction(
@@ -116,7 +122,7 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
 
   Future<void> save() async {
     final value = controller.text.trim();
-    if (busy || value.isEmpty) return;
+    if (blocked || value.isEmpty) return;
     setState(() {
       busy = true;
       error = null;
@@ -143,7 +149,7 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: exiting || (!busy && controller.text == widget.initial),
+    canPop: exiting || (!blocked && controller.text == widget.initial),
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) cancel();
     },
@@ -155,13 +161,18 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
         children: [
           AppTextField(
             controller: controller,
-            enabled: !busy,
+            enabled: !blocked,
             autofocus: true,
             minLines: 4,
             maxLines: 10,
             maxLength: 100000,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(hintText: '回复内容'),
+          ),
+          MediaUploadButton(
+            controller: controller,
+            enabled: !blocked,
+            onBusyChanged: (value) => setState(() => uploading = value),
           ),
           if (error != null)
             Padding(
@@ -174,9 +185,12 @@ class _EditReplyDialogState extends State<_EditReplyDialog> {
         ],
       ),
       actions: [
-        AppTextButton(onPressed: busy ? null : cancel, child: const Text('取消')),
+        AppTextButton(
+          onPressed: blocked ? null : cancel,
+          child: const Text('取消'),
+        ),
         AppFilledButton(
-          onPressed: busy ? null : save,
+          onPressed: blocked ? null : save,
           child: Text(busy ? '正在保存…' : '保存'),
         ),
       ],

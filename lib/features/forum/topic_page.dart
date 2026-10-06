@@ -25,6 +25,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   final draft = TextEditingController();
   final replyFocus = FocusNode();
   Json? replyTarget;
+  bool uploading = false;
   bool sending = false, allowExit = false;
   @override
   void dispose() {
@@ -90,13 +91,16 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   }
 
   void reply([Json? post]) {
-    if (sending) return;
+    if (sending || uploading) return;
     setState(() => replyTarget = post);
     replyFocus.requestFocus();
   }
 
   Future<void> sendReply() async {
-    if (sending || draft.text.trim().isEmpty || topic?['is_locked'] == true) {
+    if (sending ||
+        uploading ||
+        draft.text.trim().isEmpty ||
+        topic?['is_locked'] == true) {
       return;
     }
     setState(() => sending = true);
@@ -293,7 +297,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   }
 
   Future<void> confirmExit() async {
-    if (sending) return;
+    if (sending || uploading) return;
     final discard = await appShowDialog<bool>(
       context: context,
       builder: (c) => AppAlertDialog(
@@ -363,11 +367,22 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                       (b) => b['id'] == topic!['board_id'],
                     );
                     if (!context.mounted) return;
-                    await copyLink(context, '/forum/${board['slug']}/${widget.id}');
+                    await copyLink(
+                      context,
+                      '/forum/${board['slug']}/${widget.id}',
+                    );
                     if (!context.mounted) return;
-                    if (!await requireSession(context, ref) || !context.mounted) return;
-                    final result = await ref.read(communityProvider).post('/forum/topics/${widget.id}/share');
-                    if (mounted) setState(() => shareCount = (result['shareCount'] as num?)?.toInt() ?? shareCount);
+                    if (!await requireSession(context, ref) || !context.mounted)
+                      return;
+                    final result = await ref
+                        .read(communityProvider)
+                        .post('/forum/topics/${widget.id}/share');
+                    if (mounted)
+                      setState(
+                        () => shareCount =
+                            (result['shareCount'] as num?)?.toInt() ??
+                            shareCount,
+                      );
                   } catch (e) {
                     if (context.mounted) notice(context, e);
                   }
@@ -535,7 +550,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   ),
                   SizedBox(height: apple ? 14 : 20),
                   if (p['reply_to_post_id'] != null) ...[
-                    SmallTag('回复 #${posts.where((item) => item['id'] == p['reply_to_post_id']).firstOrNull?['position'] ?? '?'}'),
+                    SmallTag(
+                      '回复 #${posts.where((item) => item['id'] == p['reply_to_post_id']).firstOrNull?['position'] ?? '?'}',
+                    ),
                     const SizedBox(height: 12),
                   ],
                   MarkdownContent(str(p['content_md'])),
@@ -558,7 +575,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               : null,
                           size: 19,
                         ),
-                        label: Text('${liked.contains(str(p['id'])) ? '已赞' : '点赞'} ${p['likeCount'] ?? 0}'),
+                        label: Text(
+                          '${liked.contains(str(p['id'])) ? '已赞' : '点赞'} ${p['likeCount'] ?? 0}',
+                        ),
                       ),
                       AppTextButton.icon(
                         onPressed: topic!['is_locked'] == true
@@ -597,7 +616,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         ],
       ];
       return PopScope(
-        canPop: allowExit || (!sending && value.text.isEmpty),
+        canPop: allowExit || (!sending && !uploading && value.text.isEmpty),
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop) confirmExit();
         },
@@ -641,7 +660,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     inputKey: const ValueKey('reply-composer'),
                     hint: topic!['is_locked'] == true ? '此讨论已锁定' : '说点什么…',
                     enabled: topic!['is_locked'] != true,
-                    busy: sending,
+                    busy: sending || uploading,
+                    onUploadBusyChanged: (value) =>
+                        setState(() => uploading = value),
                     target: replyTarget == null
                         ? null
                         : str(

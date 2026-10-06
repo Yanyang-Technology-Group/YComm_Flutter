@@ -97,6 +97,22 @@ class ApiClient {
 
   Future<ApiResult<dynamic>> delete(String path) => _request('DELETE', path);
 
+  Future<ApiResult<dynamic>> upload(
+    String path,
+    MultipartFile file, {
+    ProgressCallback? onSendProgress,
+  }) => _request(
+    'POST',
+    path,
+    data: FormData.fromMap({'file': file}),
+    onSendProgress: onSendProgress,
+    options: Options(
+      method: 'POST',
+      sendTimeout: const Duration(minutes: 5),
+      receiveTimeout: const Duration(minutes: 1),
+    ),
+  );
+
   /// API 浏览器的调试请求。
   ///
   /// 与 [_request] 不同：不解析成功/失败信封，把原始状态码、响应体和耗时原样
@@ -158,15 +174,18 @@ class ApiClient {
   Future<ApiResult<dynamic>> _request(
     String method,
     String path, {
-    Map<String, dynamic>? data,
+    Object? data,
     Map<String, dynamic>? queryParameters,
+    ProgressCallback? onSendProgress,
+    Options? options,
   }) async {
     try {
       final response = await dio.request<dynamic>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(method: method),
+        options: options ?? Options(method: method),
+        onSendProgress: onSendProgress,
       );
       if (response.data is Map<String, dynamic>) {
         return ApiResult.fromJson(response.data as Map<String, dynamic>);
@@ -186,7 +205,8 @@ class ApiClient {
           'code': error.response?.statusCode?.toString() ?? 'NETWORK',
           'message': error.response?.statusCode != null
               ? '服务暂时不可用（${error.response!.statusCode}），请稍后重试'
-              : error.type == DioExceptionType.connectionTimeout ||
+              : error.type == DioExceptionType.sendTimeout ||
+                    error.type == DioExceptionType.connectionTimeout ||
                     error.type == DioExceptionType.receiveTimeout
               ? '连接超时，请检查网络后重试'
               : '网络暂时不可用，请检查连接后重试',

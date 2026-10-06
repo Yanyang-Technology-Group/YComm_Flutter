@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../design/apple_chrome.dart';
 import '../design/tokens.dart';
+import 'media_upload_button.dart';
 
 class InlineComposer extends StatelessWidget {
   const InlineComposer({
@@ -18,6 +19,7 @@ class InlineComposer extends StatelessWidget {
     this.target,
     this.onCancelTarget,
     this.sendLabel = '发送',
+    this.onUploadBusyChanged,
   });
   final TextEditingController controller;
   final Key inputKey;
@@ -27,6 +29,7 @@ class InlineComposer extends StatelessWidget {
   final bool busy, enabled;
   final String? target;
   final VoidCallback? onCancelTarget;
+  final ValueChanged<bool>? onUploadBusyChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +91,13 @@ class InlineComposer extends StatelessWidget {
               key: const ValueKey('composer-input-row'),
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                if (onUploadBusyChanged != null)
+                  MediaUploadButton(
+                    controller: controller,
+                    compact: true,
+                    enabled: enabled && !busy,
+                    onBusyChanged: onUploadBusyChanged!,
+                  ),
                 Expanded(
                   child: AppTextField(
                     key: inputKey,

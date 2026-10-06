@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/community_api.dart';
 import '../../core/widgets/design.dart';
+import '../../core/widgets/media_upload_button.dart';
 import '../../core/design/apple_chrome.dart';
 
 class ComposePage extends ConsumerStatefulWidget {
@@ -30,6 +31,8 @@ class _ComposePageState extends ConsumerState<ComposePage> {
   final title = TextEditingController(), content = TextEditingController();
   final form = GlobalKey<FormState>();
   String? slug, error;
+  bool uploading = false;
+  bool get blocked => busy || uploading;
   bool busy = false, preview = false, allowExit = false;
   DateTime? scheduledAt;
   bool get reply => widget.topicId != null;
@@ -57,7 +60,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
   }
 
   Future<void> leave() async {
-    if (busy) return;
+    if (blocked) return;
     if (title.text.isEmpty && content.text.isEmpty) {
       Navigator.pop(context);
       return;
@@ -89,7 +92,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
   }
 
   Future<void> submit() async {
-    if (busy || !form.currentState!.validate()) return;
+    if (blocked || !form.currentState!.validate()) return;
     if (content.text.trim().isEmpty) {
       setState(() {
         error = '请先写一点内容';
@@ -110,7 +113,8 @@ class _ComposePageState extends ConsumerState<ComposePage> {
         {
           'content': content.text.trim(),
           if (!reply) 'title': title.text.trim(),
-          if (!reply && scheduledAt != null) 'scheduledAt': scheduledAt!.toUtc().toIso8601String(),
+          if (!reply && scheduledAt != null)
+            'scheduledAt': scheduledAt!.toUtc().toIso8601String(),
           if (widget.replyTo != null) 'replyToPostId': widget.replyTo,
         },
       );
@@ -119,7 +123,9 @@ class _ComposePageState extends ConsumerState<ComposePage> {
         context,
         result['needsReview'] == true || result['post']?['status'] == 'pending'
             ? '已提交，审核通过后会显示'
-            : scheduledAt != null ? '已安排于 ${dateLabel(scheduledAt!.toIso8601String())} 发布' : '发布成功',
+            : scheduledAt != null
+            ? '已安排于 ${dateLabel(scheduledAt!.toIso8601String())} 发布'
+            : '发布成功',
       );
       setState(() => allowExit = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -137,7 +143,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
     final apple = appleTokensOf(context) != null;
     return PopScope(
       canPop:
-          allowExit || (!busy && title.text.isEmpty && content.text.isEmpty),
+          allowExit || (!blocked && title.text.isEmpty && content.text.isEmpty),
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) leave();
       },
@@ -147,14 +153,14 @@ class _ComposePageState extends ConsumerState<ComposePage> {
           title: Text(reply ? '写回复' : '发起讨论'),
           leading: apple
               ? AppTextButton(
-                  onPressed: busy ? null : leave,
+                  onPressed: blocked ? null : leave,
                   child: const Text('取消'),
                 )
               : null,
           actions: [
             if (apple)
               AppTextButton(
-                onPressed: busy ? null : submit,
+                onPressed: blocked ? null : submit,
                 child: Text(busy ? '发布中' : '发布'),
               )
             else
@@ -189,14 +195,16 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                             ),
                           )
                           .toList(),
-                      onChanged: busy ? null : (v) => setState(() => slug = v),
+                      onChanged: blocked
+                          ? null
+                          : (v) => setState(() => slug = v),
                       validator: (v) => v == null ? '请选择版块' : null,
                     ),
                     const SizedBox(height: 20),
                     AppTextFormField(
                       controller: title,
                       autofocus: widget.initialContent.isNotEmpty,
-                      enabled: !busy,
+                      enabled: !blocked,
                       maxLength: 120,
                       maxLines: 2,
                       minLines: 1,
@@ -212,37 +220,57 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                     AppSwitchListTile(
                       title: const Text('定时发布'),
                       value: scheduledAt != null,
-                      onChanged: busy ? null : (value) async {
-                        if (!value) {
-                          setState(() => scheduledAt = null);
-                          return;
-                        }
-                        final now = DateTime.now();
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          firstDate: now.add(const Duration(hours: 1)),
-                          lastDate: DateTime(now.year, now.month + 3, now.day),
-                          initialDate: now.add(const Duration(hours: 1)),
-                        );
-                        if (pickedDate == null || !context.mounted) return;
-                        final pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
-                        );
-                        if (pickedTime == null || !context.mounted) return;
-                        final publishAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-                        if (publishAt.isBefore(DateTime.now().add(const Duration(hours: 1)))) {
-                          if (!context.mounted) return;
-                          notice(context, '发布时间需至少在 1 小时后');
-                          return;
-                        }
-                        setState(() => scheduledAt = publishAt);
-                      },
+                      onChanged: blocked
+                          ? null
+                          : (value) async {
+                              if (!value) {
+                                setState(() => scheduledAt = null);
+                                return;
+                              }
+                              final now = DateTime.now();
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                firstDate: now.add(const Duration(hours: 1)),
+                                lastDate: DateTime(
+                                  now.year,
+                                  now.month + 3,
+                                  now.day,
+                                ),
+                                initialDate: now.add(const Duration(hours: 1)),
+                              );
+                              if (pickedDate == null || !context.mounted)
+                                return;
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(
+                                  now.add(const Duration(hours: 1)),
+                                ),
+                              );
+                              if (pickedTime == null || !context.mounted)
+                                return;
+                              final publishAt = DateTime(
+                                pickedDate.year,
+                                pickedDate.month,
+                                pickedDate.day,
+                                pickedTime.hour,
+                                pickedTime.minute,
+                              );
+                              if (publishAt.isBefore(
+                                DateTime.now().add(const Duration(hours: 1)),
+                              )) {
+                                if (!context.mounted) return;
+                                notice(context, '发布时间需至少在 1 小时后');
+                                return;
+                              }
+                              setState(() => scheduledAt = publishAt);
+                            },
                     ),
                     if (scheduledAt != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Text('发布时间：${dateLabel(scheduledAt!.toIso8601String())}'),
+                        child: Text(
+                          '发布时间：${dateLabel(scheduledAt!.toIso8601String())}',
+                        ),
                       ),
                   ],
                   if (widget.replyName != null) ...[
@@ -253,7 +281,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: AppTextButton(
-                        onPressed: busy
+                        onPressed: blocked
                             ? null
                             : () => setState(() => preview = !preview),
                         child: Text(preview ? '继续编辑' : '预览正文'),
@@ -275,7 +303,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                   else
                     AppTextFormField(
                       controller: content,
-                      enabled: !busy,
+                      enabled: !blocked,
                       minLines: 10,
                       maxLines: null,
                       maxLength: 100000,
@@ -287,6 +315,11 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? '请先写一点内容' : null,
                     ),
+                  MediaUploadButton(
+                    controller: content,
+                    enabled: !blocked,
+                    onBusyChanged: (value) => setState(() => uploading = value),
+                  ),
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -300,7 +333,7 @@ class _ComposePageState extends ConsumerState<ComposePage> {
                   const SizedBox(height: 20),
                   if (!apple)
                     AppFilledButton.icon(
-                      onPressed: busy ? null : submit,
+                      onPressed: blocked ? null : submit,
                       icon: const AppIcon(Icons.arrow_upward_rounded),
                       label: Text(
                         busy
