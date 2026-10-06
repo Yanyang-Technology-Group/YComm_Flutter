@@ -266,6 +266,15 @@ void main() {
           () => ThemeData.lerp(winui, material, progress),
           returnsNormally,
         );
+        for (final themes in [(material, winui), (winui, material)]) {
+          final labels = ThemeData.lerp(
+            themes.$1,
+            themes.$2,
+            progress,
+          ).navigationBarTheme.labelTextStyle!;
+          expect(() => labels.resolve({}), returnsNormally);
+          expect(() => labels.resolve({WidgetState.selected}), returnsNormally);
+        }
       }
     }
   });

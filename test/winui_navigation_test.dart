@@ -68,38 +68,41 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildWinuiTheme(ThemeColour.azure, Brightness.dark),
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(2)),
-            child: child!,
-          ),
-          home: Scaffold(
-            body: Row(
-              children: [
-                WinuiNavigationPane(
-                  index: 2,
-                  onSelect: (_) {},
-                  items: items,
-                  expanded: false,
-                ),
-                const Expanded(child: Text('内容')),
-              ],
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildWinuiTheme(ThemeColour.azure, Brightness.dark),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Row(
+                children: [
+                  WinuiNavigationPane(
+                    index: 2,
+                    onSelect: (_) {},
+                    items: items,
+                    expanded: false,
+                  ),
+                  const Expanded(child: Text('内容')),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('消息，99+ 条未读'), findsOneWidget);
-      final unread = find.descendant(
-        of: find.byKey(const ValueKey('winui-destination-2')),
-        matching: find.byType(Badge),
-      );
-      expect(tester.widget<Badge>(unread).label, isNull);
-      expect(tester.takeException(), isNull);
+        );
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('消息，99+ 条未读'), findsOneWidget);
+        final unread = find.descendant(
+          of: find.byKey(const ValueKey('winui-destination-2')),
+          matching: find.byType(Badge),
+        );
+        expect(tester.widget<Badge>(unread).label, isNull);
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
     },
   );
 }

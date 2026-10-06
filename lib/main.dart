@@ -59,6 +59,7 @@ class YCommApp extends ConsumerStatefulWidget {
 
 class _YCommAppState extends ConsumerState<YCommApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
+  DesignStyle? _renderedStyle;
   @override
   void initState() {
     super.initState();
@@ -75,6 +76,8 @@ class _YCommAppState extends ConsumerState<YCommApp> {
     final style = theme.style.isSupported
         ? theme.style
         : DesignStyle.defaultForPlatform();
+    final styleChanged = _renderedStyle != null && _renderedStyle != style;
+    _renderedStyle = style;
     final apple = style == DesignStyle.apple;
     ThemeData themeFor(Brightness brightness) => switch (style) {
       DesignStyle.apple => buildAppleTheme(theme.colour, brightness),
@@ -110,13 +113,14 @@ class _YCommAppState extends ConsumerState<YCommApp> {
       },
       theme: themeFor(Brightness.light),
       darkTheme: themeFor(Brightness.dark),
-      // 尊重系统「减少动画」：关掉时主题切换不做插值，直接换。
+      // 跨风格切换直接替换布局；同一风格内的颜色切换保留动画。
       themeAnimationDuration:
-          WidgetsBinding
-              .instance
-              .platformDispatcher
-              .accessibilityFeatures
-              .disableAnimations
+          styleChanged ||
+              WidgetsBinding
+                  .instance
+                  .platformDispatcher
+                  .accessibilityFeatures
+                  .disableAnimations
           ? Duration.zero
           : const Duration(milliseconds: 250),
       // 在 Navigator 外为标题栏保留独立空间，所有路由都显示在标题栏下方。

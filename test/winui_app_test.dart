@@ -17,8 +17,6 @@ void main() {
     'Windows starts with WinUI and switches styles without losing the settings route',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       tester.view.physicalSize = const Size(1000, 700);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -34,6 +32,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Initial WinUI shell');
       expect(
         tester
             .widget<WinuiNavigationPane>(find.byType(WinuiNavigationPane))
@@ -51,8 +50,10 @@ void main() {
       Navigator.of(shell)
           .push(appPageRoute(shell, builder: (_) => const AppearancePage()));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Appearance route');
       await tester.tap(find.text('Material'));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'WinUI to Material');
       expect(find.byType(AppearancePage), findsOneWidget);
       expect(
         tester
@@ -65,6 +66,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('WinUI'));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Material to WinUI');
       expect(find.byType(AppearancePage), findsOneWidget);
       expect(
         tester
@@ -86,5 +88,6 @@ void main() {
       expect(tester.takeException(), isNull);
     },
     skip: kIsWeb,
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );
 }
