@@ -455,7 +455,6 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       elevation: 0,
       pressElevation: 0,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      materialTapTargetSize: MaterialTapTargetSize.padded,
     ),
     tabBarTheme: TabBarThemeData(
       indicator: UnderlineTabIndicator(
