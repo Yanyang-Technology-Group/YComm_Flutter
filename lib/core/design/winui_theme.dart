@@ -404,8 +404,10 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
       iconColor: scheme.onSurfaceVariant,
       selectedColor: scheme.onSurface,
       selectedTileColor: scheme.primaryContainer,
-      titleTextStyle: text.bodyMedium,
+      // ListTile's default styles are fully resolved by Theme.of(context).
+      titleTextStyle: text.bodyMedium?.copyWith(inherit: false),
       subtitleTextStyle: text.bodySmall?.copyWith(
+        inherit: false,
         color: scheme.onSurfaceVariant,
       ),
     ),
