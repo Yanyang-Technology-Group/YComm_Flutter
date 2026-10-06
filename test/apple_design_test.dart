@@ -112,20 +112,24 @@ void main() {
   group('风格选择', () {
     tearDown(() => debugDefaultTargetPlatformOverride = null);
 
-    test('Apple 平台默认 Apple 风格，其余平台保持 Material', () {
+    test('Apple 默认 Apple，Windows 默认 WinUI，其余平台保持 Material', () {
       for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
         debugDefaultTargetPlatformOverride = platform;
         expect(DesignStyle.defaultForPlatform(), DesignStyle.apple);
       }
       for (final platform in [
         TargetPlatform.android,
-        TargetPlatform.windows,
         TargetPlatform.linux,
         TargetPlatform.fuchsia,
       ]) {
         debugDefaultTargetPlatformOverride = platform;
         expect(DesignStyle.defaultForPlatform(), DesignStyle.material);
       }
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      expect(
+        DesignStyle.defaultForPlatform(),
+        kIsWeb ? DesignStyle.material : DesignStyle.winui,
+      );
     });
 
     test('没存过偏好时按平台解析', () {

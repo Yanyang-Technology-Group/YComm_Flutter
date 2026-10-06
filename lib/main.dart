@@ -11,6 +11,8 @@ import 'core/design/apple_chrome.dart';
 import 'core/design/apple_nav.dart';
 import 'core/design/apple_theme.dart';
 import 'core/design/design_style.dart';
+import 'core/design/winui_theme.dart';
+import 'core/design/winui_nav.dart';
 import 'core/network/api_client.dart';
 import 'core/network/community_api.dart';
 import 'core/network/realtime_service.dart';
@@ -69,11 +71,16 @@ class _YCommAppState extends ConsumerState<YCommApp> {
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(themeControllerProvider);
-    // 两种风格共用同一套主题色，只是呈现语言不同。
-    final apple = theme.style == DesignStyle.apple;
-    ThemeData themeFor(Brightness brightness) => apple
-        ? buildAppleTheme(theme.colour, brightness)
-        : buildTheme(theme.colour, brightness);
+    // 平台专属风格只在支持的平台生效；主题色和明暗偏好继续共用。
+    final style = theme.style.isSupported
+        ? theme.style
+        : DesignStyle.defaultForPlatform();
+    final apple = style == DesignStyle.apple;
+    ThemeData themeFor(Brightness brightness) => switch (style) {
+      DesignStyle.apple => buildAppleTheme(theme.colour, brightness),
+      DesignStyle.winui => buildWinuiTheme(theme.colour, brightness),
+      DesignStyle.material => buildTheme(theme.colour, brightness),
+    };
     if (apple) {
       final brightness = switch (theme.mode) {
         ThemeModePreference.auto => MediaQuery.platformBrightnessOf(context),
@@ -351,7 +358,8 @@ class _AppShellState extends ConsumerState<AppShell>
     // 高频标签切换即时显示，避免重复导航时内容移动。
     // Material 风格沿用原来的固定时长淡入。
     final apple = appleTokensOf(context) != null;
-    final body = apple
+    final winui = isWinui(context);
+    final body = apple || winui
         ? stacks
         : FadeTransition(
             opacity: Tween<double>(begin: .5, end: 1).animate(
@@ -379,6 +387,28 @@ class _AppShellState extends ConsumerState<AppShell>
       },
       child: LayoutBuilder(
         builder: (context, box) {
+          if (winui) {
+            return AppScaffold(
+              body: Row(
+                children: [
+                  WinuiNavigationPane(
+                    index: index,
+                    onSelect: select,
+                    expanded: box.maxWidth >= 900,
+                    items: [
+                      for (var i = 0; i < labels.length; i++)
+                        WinuiNavigationItem(
+                          label: labels[i],
+                          icon: icons[i],
+                          badge: badgeOf[i],
+                        ),
+                    ],
+                  ),
+                  Expanded(child: body),
+                ],
+              ),
+            );
+          }
           final wide = box.maxWidth >= 850;
           final shell = AppScaffold(
             bottomOverlayExtent:

@@ -37,7 +37,7 @@ class AppearancePage extends ConsumerWidget {
       // 界面风格放在最前：它决定的是整套排版与动效语言，比换主题色更重。
       section('界面风格'),
       group(
-        DesignStyle.values.map(
+        DesignStyle.supportedForPlatform().map(
           (style) => Semantics(
             selected: state.style == style,
             child: AppListTile(
@@ -45,19 +45,17 @@ class AppearancePage extends ConsumerWidget {
                 horizontal: 24,
                 vertical: 4,
               ),
-              leading: AppIcon(
-                style == DesignStyle.apple
-                    ? Icons.apple
-                    : Icons.android_outlined,
-                color: scheme.primary,
-              ),
+              leading: AppIcon(switch (style) {
+                DesignStyle.apple => Icons.apple,
+                DesignStyle.material => Icons.android_outlined,
+                DesignStyle.winui => Icons.desktop_windows_outlined,
+              }, color: scheme.primary),
               title: Text(style.label),
-              subtitle: Text(
-                style == DesignStyle.apple
-                    ? '原生控件、清晰排版与轻盈反馈'
-                    : '沿用当前 Material 3 界面',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              subtitle: Text(switch (style) {
+                DesignStyle.apple => '原生控件、清晰排版与轻盈反馈',
+                DesignStyle.material => '沿用当前 Material 3 界面',
+                DesignStyle.winui => 'Windows 风格控件、侧边导航与清晰层次',
+              }, style: Theme.of(context).textTheme.bodySmall),
               trailing: state.style == style
                   ? AppIcon(Icons.check_rounded, color: scheme.primary)
                   : null,
