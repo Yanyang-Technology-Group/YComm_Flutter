@@ -58,7 +58,13 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Test
-        run: flutter test
+        run: |
+          set +e
+          flutter test --machine | tee "$RUNNER_TEMP/flutter-test-results.json"
+          TEST_EXIT=${PIPESTATUS[0]}
+          set -e
+          node .github/report_flutter_tests.mjs "$RUNNER_TEMP/flutter-test-results.json"
+          exit "$TEST_EXIT"
 
   # ── 2. 解析版本号（所有构建任务共用） ─────────────────────────────────
   version:
