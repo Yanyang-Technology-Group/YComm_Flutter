@@ -24,6 +24,7 @@ final _appleIcons = <IconData, IconData>{
   m.Icons.arrow_upward: CupertinoIcons.arrow_up,
   m.Icons.arrow_upward_rounded: CupertinoIcons.arrow_up,
   m.Icons.article_outlined: CupertinoIcons.doc_text,
+  m.Icons.attach_file_rounded: CupertinoIcons.paperclip,
   m.Icons.block_rounded: CupertinoIcons.nosign,
   m.Icons.brightness_auto_outlined: CupertinoIcons.circle_lefthalf_fill,
   m.Icons.calendar_month: CupertinoIcons.calendar,

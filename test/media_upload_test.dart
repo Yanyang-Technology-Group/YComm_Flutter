@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -44,45 +43,70 @@ class UploadApi extends CommunityApi {
   }
 }
 
+// Replace only the network transport; Dio still serializes the multipart body
+// and reports progress while the adapter consumes the request stream.
+class UploadAdapter implements HttpClientAdapter {
+  final requests = <({RequestOptions options, String body})>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final body = await utf8.decoder.bind(requestStream!).join();
+    requests.add((options: options, body: body));
+    return ResponseBody.fromString(
+      jsonEncode({
+        'ok': true,
+        'data': {'url': '/api/uploads/videos/test-file.mp4'},
+      }),
+      201,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 void main() {
   test(
     'multipart upload uses the correct endpoint, file field and progress',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() => server.close(force: true));
-      final requests = <String>[];
-      server.listen((request) async {
-        requests.add(request.uri.path);
-        expect(request.headers.contentType?.mimeType, 'multipart/form-data');
-        final body = await utf8.decoder.bind(request).join();
-        expect(body, contains('name="file"; filename="test.mp4"'));
-        expect(body, contains('test-video-bytes'));
-        request.response.statusCode = 201;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(
-          jsonEncode({
-            'ok': true,
-            'data': {'url': '/api/uploads/videos/test-file.mp4'},
-          }),
-        );
-        await request.response.close();
-      });
-      final api = CommunityApi(
-        client: ApiClient(baseUrl: 'http://127.0.0.1:${server.port}/api'),
-      );
-      var sent = 0;
+      final adapter = UploadAdapter();
+      final client = ApiClient()..dio.httpClientAdapter = adapter;
+      addTearDown(() => client.dio.close(force: true));
+      final api = CommunityApi(client: client);
       for (final video in [true, false]) {
+        final progress = <(int, int)>[];
         await api.uploadMedia(
           MultipartFile.fromBytes(
             utf8.encode('test-video-bytes'),
             filename: 'test.mp4',
           ),
           video: video,
-          onSendProgress: (count, total) => sent = count,
+          onSendProgress: (count, total) => progress.add((count, total)),
         );
+        expect(progress, isNotEmpty);
+        expect(progress.last.$1, greaterThan(0));
+        expect(progress.last.$1, progress.last.$2);
       }
-      expect(requests, ['/api/uploads/videos', '/api/uploads/images']);
-      expect(sent, greaterThan(0));
+      expect(adapter.requests.map((request) => request.options.uri.path), [
+        '/api/uploads/videos',
+        '/api/uploads/images',
+      ]);
+      for (final request in adapter.requests) {
+        expect(request.options.method, 'POST');
+        expect(
+          request.options.contentType,
+          startsWith('multipart/form-data; boundary='),
+        );
+        expect(request.body, contains('name="file"; filename="test.mp4"'));
+        expect(request.body, contains('test-video-bytes'));
+      }
     },
   );
 
@@ -261,9 +285,12 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('上传图片或视频'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('上传图片或视频'));
     await tester.pump();
+    expect(api.calls, 1);
     expect(
       tester.widget<AppFilledButton>(find.byType(AppFilledButton)).onPressed,
       isNull,
