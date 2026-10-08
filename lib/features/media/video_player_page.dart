@@ -5,6 +5,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/media/playback.dart';
+import '../../core/media/video_urls.dart';
 
 /// 帖子内视频播放页（整页 / 全屏路由）。
 ///
@@ -38,6 +39,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   StreamSubscription<String>? errorSub;
   String? error;
   int generation = 0;
+  bool original = false;
 
   @override
   void initState() {
@@ -52,6 +54,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     // 出画面之前先别让人对着黑屏猜：把 mpv 的报错原文显示出来。
     errorSub = player.stream.error.listen((message) {
       if (isPlaybackWarning(message)) return;
+      if (!original &&
+          videoPlaybackUrl(widget.url) != widget.url &&
+          (message.contains('404') || message.contains('Failed to open'))) {
+        original = true;
+        _open();
+        return;
+      }
       if (mounted) setState(() => error = message);
     });
     _open();
@@ -60,8 +69,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _open() async {
     final ticket = ++generation;
     try {
-      await openVideo(player, widget.url);
+      await openVideo(player, widget.url, original: original);
     } catch (failure) {
+      if (mounted &&
+          ticket == generation &&
+          !original &&
+          videoPlaybackUrl(widget.url) != widget.url) {
+        original = true;
+        await _open();
+        return;
+      }
       if (mounted && ticket == generation) setState(() => error = '$failure');
     }
   }
@@ -71,6 +88,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
       error = null;
+      original = false;
       _open();
     }
   }
