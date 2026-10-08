@@ -56,6 +56,7 @@ final _appleIcons = <IconData, IconData>{
   m.Icons.favorite_border_rounded: CupertinoIcons.heart,
   m.Icons.favorite_rounded: CupertinoIcons.heart_fill,
   m.Icons.folder_open_rounded: CupertinoIcons.folder,
+  m.Icons.font_download_outlined: CupertinoIcons.textformat,
   m.Icons.forum_outlined: CupertinoIcons.chat_bubble_2,
   m.Icons.forum_rounded: CupertinoIcons.chat_bubble_2_fill,
   m.Icons.history_rounded: CupertinoIcons.clock,

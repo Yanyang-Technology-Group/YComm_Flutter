@@ -174,6 +174,40 @@ Future<void> reveal(WidgetTester tester, String text) async {
 }
 
 void main() {
+  testWidgets('direct owner details load badges after session resolves', (
+    tester,
+  ) async {
+    final api = UsersApi();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [communityProvider.overrideWithValue(api)],
+        child: MaterialApp(home: AdminUserDetailPage(user: api.sessionUser)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      api.calls.any((call) => call.$1 == '/admin/users/owner/badges'),
+      isTrue,
+    );
+    expect(find.text('无权查看或管理该账号'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  test('administrators cannot inspect owner management details', () {
+    expect(
+      canInspectAdminUser(
+        {'id': 'admin', 'role': 'admin', 'state': 'active'},
+        {'id': 'owner', 'role': 'owner'},
+      ),
+      isFalse,
+    );
+    expect(
+      canInspectAdminUser(
+        {'id': 'owner', 'role': 'owner', 'state': 'active'},
+        {'id': 'owner', 'role': 'owner'},
+      ),
+      isTrue,
+    );
+  });
   testWidgets(
     'returning from user details after account change does not refresh disposed list',
     (tester) async {

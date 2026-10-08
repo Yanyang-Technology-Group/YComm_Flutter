@@ -15,6 +15,7 @@ class TestApi extends CommunityApi {
   final calls = <String>[];
   bool fail = false, signedIn = false, failSend = false;
   Json? sentBody;
+  Json? searchQuery;
 
   /// 主题详情的帖子列表（接口按时间倒序返回：新的在上面，楼主帖在最下方）。
   List<Json> topicPosts = const [
@@ -83,9 +84,17 @@ class TestApi extends CommunityApi {
       };
     }
     if (path == '/forum/search') {
+      searchQuery = query;
       return {
-        'topics': [
-          {'id': 't1', 'title': '搜索命中'},
+        'forum': [
+          {
+            'boardId': 'b1',
+            'boardSlug': 'first',
+            'boardName': '第一版块',
+            'topics': [
+              {'id': 't1', 'title': '搜索命中'},
+            ],
+          },
         ],
       };
     }
@@ -220,55 +229,58 @@ void main() {
     expect(find.text('真实接口讨论'), findsOneWidget);
   });
   testWidgets('search submits query and navigates to result', (tester) async {
-    await app(tester, TestApi());
+    final api = TestApi();
+    await app(tester, api);
     await tester.tap(find.byTooltip('搜索讨论'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '测试');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
+    expect(api.searchQuery, {'q': '测试', 'scope': 'forum'});
     expect(find.text('搜索命中'), findsOneWidget);
     await tester.tap(find.text('搜索命中'));
     await tester.pumpAndSettle();
     expect(find.text('正文内容'), findsOneWidget);
   });
-  testWidgets('forum composer entry is a button; reply composer focuses target', (
-    tester,
-  ) async {
-    await app(tester, TestApi());
-    expect(find.byType(FloatingActionButton), findsNothing);
-    // 底部不再是常驻输入框，而是一枚「发点新鲜事」按钮，点进去才是整页发布
-    // （整页 ComposerPage 本身在 apple_forum_experience_test 里覆盖）。
-    expect(find.byKey(const ValueKey('community-composer')), findsOneWidget);
-    expect(find.textContaining('发点新鲜事'), findsOneWidget);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('真实接口讨论'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('回复').first);
-    await tester.pumpAndSettle();
-    expect(tester.testTextInput.isVisible, isTrue);
-    await tester.enterText(
-      find.byKey(const ValueKey('reply-composer')),
-      '我的回复',
-    );
-    expect(find.text('回复 member'), findsOneWidget);
-    await tester.tap(find.byTooltip('取消回复对象'));
-    await tester.pumpAndSettle();
-    expect(find.text('我的回复'), findsOneWidget);
-    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
-    expect(
-      tester.getBottomLeft(find.byKey(const ValueKey('reply-composer'))).dy,
-      lessThanOrEqualTo(544),
-    );
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.text('放弃回复？'), findsOneWidget);
-    await tester.tap(find.text('继续编辑'));
-    await tester.pumpAndSettle();
-    expect(find.text('我的回复'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'forum composer entry is a button; reply composer focuses target',
+    (tester) async {
+      await app(tester, TestApi());
+      expect(find.byType(FloatingActionButton), findsNothing);
+      // 底部不再是常驻输入框，而是一枚「发点新鲜事」按钮，点进去才是整页发布
+      // （整页 ComposerPage 本身在 apple_forum_experience_test 里覆盖）。
+      expect(find.byKey(const ValueKey('community-composer')), findsOneWidget);
+      expect(find.textContaining('发点新鲜事'), findsOneWidget);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('真实接口讨论'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('回复').first);
+      await tester.pumpAndSettle();
+      expect(tester.testTextInput.isVisible, isTrue);
+      await tester.enterText(
+        find.byKey(const ValueKey('reply-composer')),
+        '我的回复',
+      );
+      expect(find.text('回复 member'), findsOneWidget);
+      await tester.tap(find.byTooltip('取消回复对象'));
+      await tester.pumpAndSettle();
+      expect(find.text('我的回复'), findsOneWidget);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getBottomLeft(find.byKey(const ValueKey('reply-composer'))).dy,
+        lessThanOrEqualTo(544),
+      );
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('放弃回复？'), findsOneWidget);
+      await tester.tap(find.text('继续编辑'));
+      await tester.pumpAndSettle();
+      expect(find.text('我的回复'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('reply failure preserves draft and retry sends reply target', (
     tester,
   ) async {
@@ -302,9 +314,7 @@ void main() {
     expect(find.text('保留的回复'), findsNothing);
     expect(find.text('回复 member'), findsNothing);
   });
-  testWidgets('楼层标签跟 position 走：最下方的楼主帖显示「楼主」，排序保持倒序', (
-    tester,
-  ) async {
+  testWidgets('楼层标签跟 position 走：最下方的楼主帖显示「楼主」，排序保持倒序', (tester) async {
     // 复现用户场景：发「测试」帖后有人回「测试」——接口按时间倒序返回，
     // 回复在上、楼主帖在最下方；此前客户端按下标贴标签，把回复标成了「楼主」。
     final api = TestApi()
@@ -344,11 +354,7 @@ void main() {
     expect(find.text('楼主'), findsOneWidget);
     expect(find.text('2 楼'), findsOneWidget);
     final ownerTagY = tester.getTopLeft(find.text('楼主')).dy;
-    expect(
-      ownerTagY,
-      greaterThan(replyY),
-      reason: '「楼主」应贴在下方楼主帖上，而不是最上面的回复',
-    );
+    expect(ownerTagY, greaterThan(replyY), reason: '「楼主」应贴在下方楼主帖上，而不是最上面的回复');
     expect(ownerTagY, lessThan(opY), reason: '「楼主」应在楼主帖头部（正文上方）');
     expect(
       tester.getTopLeft(find.text('2 楼')).dy,

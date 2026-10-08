@@ -202,7 +202,10 @@ ThemeData buildWinuiTheme(ThemeColour colour, Brightness brightness) {
   final text = _winuiTextTheme(base.textTheme, scheme);
   // Component defaults come from the localized Theme.of(context), whose styles
   // are complete. Match that inheritance for their own implicit animations.
-  TextStyle? controlText(TextStyle? style) => style?.copyWith(inherit: false);
+  TextStyle? controlText(TextStyle? style) => style?.copyWith(
+    inherit: false,
+    textBaseline: style.textBaseline ?? TextBaseline.alphabetic,
+  );
   final controlShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(4),
   );

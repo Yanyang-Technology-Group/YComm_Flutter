@@ -7,11 +7,10 @@
 // startDragging / minimize / maximize / close。
 import 'dart:io'
     show Directory, File, Platform, Process, ProcessStartMode, exit;
-import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:convert' show jsonDecode;
 
 import 'package:flutter/foundation.dart'
     show VoidCallback, debugPrint, kIsWeb, kReleaseMode;
-import 'package:flutter/material.dart' show MaterialApp, Widget;
 import 'package:flutter/services.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:nativeapi/nativeapi.dart' show LaunchAtLogin;
@@ -20,7 +19,9 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'gpu_probe_ffi.dart';
-import '../../features/media/video_player_page.dart';
+import '../app_info.dart';
+import 'video_window_io.dart';
+export 'video_window_io.dart' show openVideoWindow, videoPlayerWindowApp;
 
 /// 是否是支持托盘与自绘标题栏的桌面平台。
 bool get isDesktopShell =>
@@ -35,11 +36,16 @@ const double desktopTitleBarHeight = 38;
 
 TrayIcon? _trayIcon;
 Menu? _trayMenu;
+final _trayItems = <MenuItem>[];
+const _windowsTray = MethodChannel('cn.yanyn.community/tray');
 bool _readyToShow = false;
+
 /// 正在创建托盘（enableTray 里有 await，重入会建出第二个图标）。
 bool _trayCreating = false;
+
 /// 窗口当前是否收在托盘里（用来判断延迟补摘任务栏按钮还要不要做）。
 bool _windowHidden = false;
+bool desktopExitRequested = false;
 
 Future<void> _ensureReadyToShow() async {
   if (_readyToShow || !isDesktopShell) return;
@@ -102,7 +108,24 @@ Future<void> destroyWindow() async {
   if (!isDesktopShell) {
     return;
   }
-  await windowManager.destroy();
+  desktopExitRequested = true;
+  try {
+    await disableTray();
+    await closeVideoWindow();
+  } finally {
+    await windowManager.setPreventClose(false);
+    await windowManager.destroy();
+  }
+}
+
+Future<void> exitForUpdate() async {
+  desktopExitRequested = true;
+  try {
+    await disableTray();
+    await closeVideoWindow();
+  } finally {
+    exit(0);
+  }
 }
 
 /// 请求关闭窗口。托盘开启时会被 onWindowClose 拦成「隐藏到托盘」。
@@ -179,7 +202,7 @@ Future<void> setWindowOpacity(double value) async {
 /// 其他平台：交给各自 runner 的 cn.yanyn.community/app_icon 通道（Windows runner
 ///   没有实现这个通道，所以这里不能对它调用，否则会抛 MissingPluginException）。
 Future<void> setDesktopWindowIcon(String iconAsset) async {
-  if (!isDesktopShell) {
+  if (!isDesktopShell || desktopExitRequested) {
     return;
   }
   if (Platform.isWindows) {
@@ -206,8 +229,10 @@ Future<void> setDesktopWindowIcon(String iconAsset) async {
 /// 渲染模式是启动参数，进程跑起来就改不了，所以用一个环境变量记住
 /// 「这个进程是按哪种模式起来的」。
 const _gpuModeEnvKey = 'YCOMM_GPU_MODE';
+
 /// 引擎启动时读的开关环境变量（shell/common/switches.cc 的 env 通道）。
 const _softwareRenderingSwitch = 'FLUTTER_ENGINE_SWITCH_1';
+
 /// 与 DesktopSettingsController.gpuKey 保持一致（启动早期只读一次 prefs）。
 const _gpuPrefsKey = 'ycomm_desktop_gpu';
 
@@ -264,7 +289,7 @@ Future<bool> relaunchWithGpuAcceleration(bool gpu) async {
     }
     await Process.start(
       _launchAtLoginExecutable(),
-      const <String>[],
+      const <String>['internal-relaunch'],
       environment: environment,
       mode: ProcessStartMode.detached,
     );
@@ -306,7 +331,29 @@ Future<void> enableTray({
   required VoidCallback onExit,
   String iconAsset = 'assets/app_icon.png',
 }) async {
-  if (!isDesktopShell) {
+  if (!isDesktopShell || desktopExitRequested) {
+    return;
+  }
+  if (Platform.isWindows) {
+    _windowsTray.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'show':
+          onShowWindow();
+        case 'update':
+          onCheckUpdate();
+        case 'exit':
+          onExit();
+      }
+    });
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    await _windowsTray.invokeMethod<void>('enable', {
+      'icon':
+          '$exeDir/data/flutter_assets/${iconAsset.replaceFirst(RegExp(r'\.png$'), '.ico')}',
+      'tooltip': '晏阳社区 · $appVersionLabel',
+      'system':
+          '系统：${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      'version': '客户端：$appVersionLabel',
+    });
     return;
   }
   // 并发重入保护：applyDesktopSettings 可能连着触发两次（fireImmediately + load 完成），
@@ -336,6 +383,7 @@ Future<void> enableTray({
         menu.addSeparator();
       }
       final item = MenuItem.createWithLabelAndType(label, MenuItemType.normal);
+      if (item != null) _trayItems.add(item);
       item?.addListener((event) {
         if (event is MenuItemClickedEvent) {
           action();
@@ -346,6 +394,7 @@ Future<void> enableTray({
 
     // 分隔线只加在项之间，第一项前面不加。
     final show = MenuItem.createWithLabelAndType('显示主窗口', MenuItemType.normal);
+    if (show != null) _trayItems.add(show);
     show?.addListener((event) {
       if (event is MenuItemClickedEvent) {
         onShowWindow();
@@ -354,6 +403,17 @@ Future<void> enableTray({
     menu.addItem(show);
     addItem('检查更新', onCheckUpdate);
     addItem('退出', onExit);
+    for (final label in [
+      '系统：${Platform.operatingSystem}',
+      '客户端：$appVersionLabel',
+    ]) {
+      final item = MenuItem.createWithLabelAndType(label, MenuItemType.normal);
+      if (item != null) {
+        item.isEnabled = false;
+        _trayItems.add(item);
+        menu.addItem(item);
+      }
+    }
 
     tray.setContextMenu(menu);
     // 只调 setContextMenu 是不会弹菜单的：nativeapi 的默认 trigger 是 none，
@@ -385,6 +445,10 @@ Future<void> enableTray({
 
 /// 关掉托盘。
 Future<void> disableTray() async {
+  if (isDesktopShell && Platform.isWindows) {
+    await _windowsTray.invokeMethod<void>('disable');
+    return;
+  }
   try {
     _trayIcon?.setVisible(false);
     _trayIcon?.dispose();
@@ -394,6 +458,10 @@ Future<void> disableTray() async {
   _trayIcon = null;
   _trayMenu?.dispose();
   _trayMenu = null;
+  for (final item in _trayItems) {
+    item.dispose();
+  }
+  _trayItems.clear();
 }
 
 // ---- 开机自启动 ----
@@ -477,47 +545,6 @@ Future<bool> setLaunchAtLogin(bool enabled) async {
 // ---- 右下角系统通知 ----
 
 // ---- 更新重启提示窗 ----
-
-/// 用独立窗口播放视频（Windows/Linux/macOS）。返回是否成功开了新窗口。
-///
-/// 这里**不再用 desktop_multi_window**：它拉起的第二个引擎里，插件的原生部分
-/// （media_kit 的视频输出面）挂不上，表现就是「控件正常、画面全黑」——
-/// 而同一个 app 在普通引擎里是能放的。所以改成再起一个**进程**：
-/// 入口参数 `video-window <json>`（见 main()），那个进程只跑播放页，
-/// 插件注册和主进程一模一样，画面就正常了。代价是多一个进程（任务栏多一项）。
-Future<bool> openVideoWindow(String url, String? title) async {
-  if (!isDesktopShell) {
-    return false;
-  }
-  try {
-    await Process.start(
-      _launchAtLoginExecutable(),
-      <String>['video-window', jsonEncode(<String, dynamic>{'url': url, 'title': title})],
-      environment: Platform.environment,
-      mode: ProcessStartMode.detached,
-    );
-    return true;
-  } catch (error) {
-    debugPrint('打开独立播放窗口失败，退回整页播放：$error');
-    return false;
-  }
-}
-
-/// 独立播放窗口里跑的应用（main 识别到 multi_window 参数时调用）。
-Widget videoPlayerWindowApp({
-  required int windowId,
-  required Map<String, dynamic> argument,
-}) => MaterialApp(
-  debugShowCheckedModeBanner: false,
-  title: '视频播放',
-  home: VideoPlayerPage(
-    url: (argument['url'] as String?) ?? '',
-    title: argument['title'] as String?,
-    softwareSurface: true,
-    // 独立窗口是一个独立进程，没有路由栈可退：返回按钮直接退出这个进程。
-    onClose: () => exit(0),
-  ),
-);
 
 /// 从子窗口参数里取出播放地址。
 Map<String, dynamic> parseVideoWindowArgument(String raw) {

@@ -40,9 +40,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     try {
       final data = await ref
           .read(communityProvider)
-          .get('/forum/search', query: {'q': value, 'scope': 'topics'});
+          .get('/forum/search', query: {'q': value, 'scope': 'forum'});
       if (mounted && ticket == generation) {
-        setState(() => results = jsonList(data['topics']));
+        setState(
+          () => results = [
+            for (final group in jsonList(data['forum']))
+              ...jsonList(group['topics']),
+          ],
+        );
       }
     } catch (e) {
       if (mounted && ticket == generation) setState(() => error = e);

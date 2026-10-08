@@ -56,8 +56,15 @@ class RefreshApi extends CommunityApi {
     }
     if (path == '/forum/search') {
       return {
-        'topics': [
-          {'id': 'topic1', 'title': '搜索结果', 'authorDisplayName': '作者'},
+        'forum': [
+          {
+            'boardId': 'board',
+            'boardSlug': 'board',
+            'boardName': '讨论',
+            'topics': [
+              {'id': 'topic1', 'title': '搜索结果', 'authorDisplayName': '作者'},
+            ],
+          },
         ],
       };
     }

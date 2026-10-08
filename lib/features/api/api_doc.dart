@@ -209,8 +209,7 @@ const apiDocEndpoints = <ApiDocEndpoint>[
     route: '/auth/github',
     method: ApiDocMethod.get,
     summary: 'GitHub 登录跳转',
-    description:
-        '302 跳转到 GitHub 授权页，回调到 /auth/github/callback。仅供文档查看，无法在线运行。',
+    description: '302 跳转到 GitHub 授权页，回调到 /auth/github/callback。仅供文档查看，无法在线运行。',
     runnableInExplorer: false,
   ),
 
@@ -468,7 +467,7 @@ const apiDocEndpoints = <ApiDocEndpoint>[
     route: '/forum/search',
     method: ApiDocMethod.get,
     summary: '搜索讨论',
-    description: '按关键字搜索讨论；scope 目前固定 topics。',
+    description: '按关键字搜索，论坛结果在 forum 数组中按版块分组。',
     params: [
       ApiDocParam(
         name: 'q',
@@ -476,7 +475,11 @@ const apiDocEndpoints = <ApiDocEndpoint>[
         required: true,
         example: 'flutter',
       ),
-      ApiDocParam(name: 'scope', description: '搜索范围', example: 'topics'),
+      ApiDocParam(
+        name: 'scope',
+        description: 'all / forum / users / downloads',
+        example: 'forum',
+      ),
     ],
   ),
 

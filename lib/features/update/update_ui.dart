@@ -94,6 +94,12 @@ Future<void> _showFound(
   bool manual = false,
 }) async {
   final controller = ref.read(updateControllerProvider.notifier);
+  final cached = await cachedInstaller(
+    url: info.downloadUrl,
+    fileName: info.fileName,
+    version: info.version,
+  );
+  if (!context.mounted) return;
   final action = await appShowDialog<String>(
     context: context,
     builder: (dialogContext) => AppAlertDialog(
@@ -103,6 +109,7 @@ Future<void> _showFound(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('线上版本：${info.version}'),
+          if (cached != null) const Text('安装包已下载，可直接安装。'),
           const SizedBox(height: 6),
           Text(
             '当前版本：$appVersionLabel',
@@ -143,13 +150,18 @@ Future<void> _showFound(
         ),
         AppFilledButton(
           onPressed: () => Navigator.of(dialogContext).pop('download'),
-          child: const Text('下载安装'),
+          child: Text(cached == null ? '下载安装' : '直接安装'),
         ),
+        if (cached != null)
+          AppTextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('redownload'),
+            child: const Text('重新下载'),
+          ),
       ],
     ),
   );
-  if (action == 'download' && context.mounted) {
-    await _download(context, ref, info);
+  if ((action == 'download' || action == 'redownload') && context.mounted) {
+    await _download(context, ref, info, forceDownload: action == 'redownload');
   }
 }
 
@@ -185,12 +197,13 @@ Future<void> _simple(
 Future<void> _download(
   BuildContext context,
   WidgetRef ref,
-  UpdateInfo info,
-) async {
+  UpdateInfo info, {
+  bool forceDownload = false,
+}) async {
   final result = await appShowDialog<_DownloadResult>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => _DownloadDialog(info: info),
+    builder: (_) => _DownloadDialog(info: info, forceDownload: forceDownload),
   );
   if (!context.mounted || result == null || result.cancelled) {
     // 用户主动取消（或直接关掉对话框）时什么都不做 ——
@@ -210,14 +223,10 @@ Future<void> _download(
   }
   // 优先静默安装：不弹安装向导。
   if (_supportsSilentInstall(result.path!)) {
-    // 安装器要替换文件就得让本应用退出。先摘掉托盘、放开关闭请求，
-    // 否则我们自己的「关窗收进托盘」会让安装器关不掉应用，文件替换不了。
-    // 托盘设置本身不动，装完重启后照旧生效。
-    await disableTray();
-    await preventWindowClose(false);
-    // 客户端自己马上就会被安装器关掉，所以先让独立进程把「正在重启」的小窗顶上来。
-    await showRestartNotice();
+    // 成功启动安装器后主动退出，释放文件并绕开关闭到托盘的拦截。
     if (context.mounted && await _runInstallerSilently(result.path!)) {
+      await showRestartNotice();
+      await exitForUpdate();
       return;
     }
   }
@@ -283,16 +292,12 @@ Future<bool> _runInstallerSilently(String path) async {
 /// 下载结果。必须区分「用户取消」「下载失败」「已保存」三种，
 /// 否则取消也会被当成失败去跳浏览器。
 class _DownloadResult {
-  const _DownloadResult.saved(this.path)
-    : cancelled = false,
-      error = null;
+  const _DownloadResult.saved(this.path) : cancelled = false, error = null;
   const _DownloadResult.cancelled()
     : path = null,
       cancelled = true,
       error = null;
-  const _DownloadResult.failed(this.error)
-    : path = null,
-      cancelled = false;
+  const _DownloadResult.failed(this.error) : path = null, cancelled = false;
 
   final String? path;
   final bool cancelled;
@@ -301,8 +306,9 @@ class _DownloadResult {
 
 /// 下载进度的模态框。
 class _DownloadDialog extends StatefulWidget {
-  const _DownloadDialog({required this.info});
+  const _DownloadDialog({required this.info, this.forceDownload = false});
   final UpdateInfo info;
+  final bool forceDownload;
   @override
   State<_DownloadDialog> createState() => _DownloadDialogState();
 }
@@ -330,6 +336,8 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       final file = await downloadInstaller(
         url: widget.info.downloadUrl,
         fileName: widget.info.fileName,
+        version: widget.info.version,
+        forceDownload: widget.forceDownload,
         cancelToken: cancel,
         onProgress: (value) {
           if (mounted) setState(() => progress = value);
@@ -343,22 +351,28 @@ class _DownloadDialogState extends State<_DownloadDialog> {
       final cancelled = error is DioException && CancelToken.isCancel(error);
       if (!cancelled) {
         debugPrint('安装包下载失败：$error');
-        debugPrintStack(stackTrace: error is InstallerDownloadFailure ? error.stackTrace : stack);
+        debugPrintStack(
+          stackTrace: error is InstallerDownloadFailure
+              ? error.stackTrace
+              : stack,
+        );
       }
       setState(() {
         failure = cancelled ? '下载已取消' : '$error';
         failureDetails = cancelled
             ? null
-            : error is InstallerDownloadFailure ? error.details : '${error.runtimeType}: $error\n\n$stack';
+            : error is InstallerDownloadFailure
+            ? error.details
+            : '${error.runtimeType}: $error\n\n$stack';
       });
     }
   }
 
-  void _close() => Navigator.of(
-    context,
-  ).pop(failure == '下载已取消'
-      ? const _DownloadResult.cancelled()
-      : _DownloadResult.failed(failure));
+  void _close() => Navigator.of(context).pop(
+    failure == '下载已取消'
+        ? const _DownloadResult.cancelled()
+        : _DownloadResult.failed(failure),
+  );
 
   @override
   Widget build(BuildContext context) => AppAlertDialog(

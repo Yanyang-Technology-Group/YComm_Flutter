@@ -17,6 +17,8 @@ Future<void> minimizeWindow() async {}
 Future<void> toggleMaximizeWindow() async {}
 Future<bool> isWindowMaximized() async => false;
 Future<void> destroyWindow() async {}
+bool get desktopExitRequested => false;
+Future<void> exitForUpdate() async {}
 Future<void> closeWindow() async {}
 Future<void> hideWindow() async {}
 Future<void> showMainWindow() async {}

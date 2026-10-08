@@ -3,7 +3,9 @@ import '../design/adaptive.dart';
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+
 import '../../features/media/video_player_page.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -14,6 +16,7 @@ import '../design/apple_widgets.dart';
 import '../design/tokens.dart';
 import '../network/community_api.dart';
 import '../window/desktop_shell.dart';
+import '../media/video_poster.dart';
 import 'markdown_text.dart';
 
 export 'markdown_text.dart';
@@ -462,19 +465,44 @@ class MarkdownContent extends StatelessWidget {
 /// 帖子里的视频链接（服务端上传的视频固定是这三种后缀）。
 bool isInlineVideoUrl(String url) {
   final path = url.split('?').first.split('#').first.toLowerCase();
-  return path.endsWith('.mp4') || path.endsWith('.webm') || path.endsWith('.mov');
+  return path.endsWith('.mp4') ||
+      path.endsWith('.webm') ||
+      path.endsWith('.mov');
 }
 
-/// 帖子里的视频：客户端不带解码器，直接给一个可点的卡片交给系统播放器/浏览器打开。
-///
-/// 以前这里会退化成 Image.network 去解 mp4，必然失败，用户看到的是
-/// 「图片暂时无法加载」——也就是「客户端放不了视频」。
-class InlineVideoCard extends StatelessWidget {
+/// 帖子里的视频封面，点击后在复用的播放器窗口中播放。
+class InlineVideoCard extends StatefulWidget {
   const InlineVideoCard({super.key, required this.url, this.title});
   final String url;
   final String? title;
   @override
+  State<InlineVideoCard> createState() => _InlineVideoCardState();
+}
+
+class _InlineVideoCardState extends State<InlineVideoCard> {
+  late Future<Uint8List?> poster;
+  @override
+  void initState() {
+    super.initState();
+    _loadPoster();
+  }
+
+  void _loadPoster() {
+    final resolved = resolveSiteUrl(widget.url);
+    poster = resolved == null
+        ? Future.value(null)
+        : videoPoster(resolved.toString());
+  }
+
+  @override
+  void didUpdateWidget(InlineVideoCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) _loadPoster();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final url = widget.url, title = widget.title;
     final scheme = Theme.of(context).colorScheme;
     return PressableScale(
       onTap: () {
@@ -483,31 +511,49 @@ class InlineVideoCard extends StatelessWidget {
         unawaited(_openVideo(context, resolved.toString(), title));
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest.withValues(alpha: .6),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppIcon(Icons.play_arrow_rounded, color: scheme.primary, size: 26),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title?.trim().isNotEmpty == true ? title! : '视频',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '点击用系统播放器打开',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    FutureBuilder<Uint8List?>(
+                      future: poster,
+                      builder: (_, snapshot) => snapshot.data == null
+                          ? ColoredBox(color: scheme.surfaceContainerHighest)
+                          : Image.memory(
+                              snapshot.data!,
+                              fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                            ),
+                    ),
+                    const Center(
+                      child: Icon(
+                        Icons.play_circle_fill_rounded,
+                        color: Colors.white,
+                        size: 56,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                title?.trim().isNotEmpty == true ? title! : '视频',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],

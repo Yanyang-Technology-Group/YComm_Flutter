@@ -19,6 +19,7 @@ import 'core/network/realtime_service.dart';
 import 'core/state/session.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/theme/font_preference.dart';
 import 'core/window/desktop_settings.dart';
 import 'core/window/desktop_shell.dart';
 import 'core/window/title_bar.dart';
@@ -39,6 +40,7 @@ Future<void> main(List<String> args) async {
   // 又不会跟主窗口抢托盘。
   if (args.isNotEmpty && args.first == 'video-window') {
     final argument = parseVideoWindowArgument(args.length > 1 ? args[1] : '');
+    await windowManager.ensureInitialized();
     runApp(videoPlayerWindowApp(windowId: 0, argument: argument));
     return;
   }
@@ -76,11 +78,12 @@ class _YCommAppState extends ConsumerState<YCommApp> {
         ? theme.style
         : DesignStyle.defaultForPlatform();
     final apple = style == DesignStyle.apple;
-    ThemeData themeFor(Brightness brightness) => switch (style) {
-      DesignStyle.apple => buildAppleTheme(theme.colour, brightness),
-      DesignStyle.winui => buildWinuiTheme(theme.colour, brightness),
-      DesignStyle.material => buildTheme(theme.colour, brightness),
-    };
+    ThemeData themeFor(Brightness brightness) =>
+        applyFontPreference(switch (style) {
+          DesignStyle.apple => buildAppleTheme(theme.colour, brightness),
+          DesignStyle.winui => buildWinuiTheme(theme.colour, brightness),
+          DesignStyle.material => buildTheme(theme.colour, brightness),
+        }, theme.font);
     if (apple) {
       final brightness = switch (theme.mode) {
         ThemeModePreference.auto => MediaQuery.platformBrightnessOf(context),
@@ -143,6 +146,7 @@ class _AppShellState extends ConsumerState<AppShell>
   int index = 0, syncGeneration = 0;
   final visited = <int>{0};
   bool active = true;
+  Future<void> _settingsQueue = Future.value();
 
   /// 上次同步给系统标题栏的外观签名，避免每帧都打平台通道。
   String? titleBarSignature;
@@ -181,7 +185,9 @@ class _AppShellState extends ConsumerState<AppShell>
       // 托盘开关一变就同步后台行为（关窗是隐藏还是退出）。
       ref.listenManual(
         desktopSettingsProvider,
-        (_, next) => applyDesktopSettings(next),
+        (_, next) => _settingsQueue = _settingsQueue.then(
+          (_) => mounted ? applyDesktopSettings(next) : Future<void>.value(),
+        ),
         fireImmediately: true,
       );
       // 未读数增加时弹右下角系统通知。不加 fireImmediately：
@@ -227,19 +233,20 @@ class _AppShellState extends ConsumerState<AppShell>
   /// 整段包 try/catch：桌面插件在测试环境（没有原生端）会抛
   /// MissingPluginException，不该影响界面。
   Future<void> applyDesktopSettings(DesktopSettings settings) async {
-    if (!isDesktopShell) {
+    if (!isDesktopShell || desktopExitRequested) {
       return;
     }
     try {
       await setDesktopWindowIcon(desktopIconAsset(settings.icon));
+      if (desktopExitRequested) return;
       await preventWindowClose(settings.tray);
+      if (desktopExitRequested) return;
       if (settings.tray) {
         await enableTray(
           onShowWindow: showMainWindow,
           onCheckUpdate: () => checkForUpdates(context, ref),
           iconAsset: desktopIconAsset(settings.icon),
           onExit: () async {
-            await disableTray();
             await destroyWindow();
           },
         );
@@ -266,7 +273,9 @@ class _AppShellState extends ConsumerState<AppShell>
   /// 自绘标题栏的关闭按钮走这里：托盘开着就收进托盘，否则直接退出。
   @override
   void onWindowClose() async {
-    if (isDesktopShell && ref.read(desktopSettingsProvider).tray) {
+    if (!desktopExitRequested &&
+        isDesktopShell &&
+        ref.read(desktopSettingsProvider).tray) {
       await hideWindow();
     } else {
       await destroyWindow();

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design/design_style.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../core/theme/font_preference.dart';
 import '../../core/widgets/design.dart';
 import '../../core/window/desktop_settings.dart';
 import '../../core/window/desktop_shell.dart';
@@ -69,6 +70,26 @@ class AppearancePage extends ConsumerWidget {
           padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
           child: AppDivider(),
         ),
+      section('字体'),
+      group(
+        FontPreference.values.map(
+          (font) => AppListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 4,
+            ),
+            leading: AppIcon(
+              Icons.font_download_outlined,
+              color: scheme.primary,
+            ),
+            title: Text(font.label),
+            trailing: state.font == font
+                ? AppIcon(Icons.check_rounded, color: scheme.primary)
+                : null,
+            onTap: () => control.setFont(font),
+          ),
+        ),
+      ),
       section('主题色'),
       group(
         ThemeColour.values.map(

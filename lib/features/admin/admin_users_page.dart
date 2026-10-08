@@ -18,6 +18,11 @@ Json adminPunishmentPayload(String reason, DateTime? until) => {
 bool canManageUserOwnerActions(Json? sessionUser) =>
     AdminAccess(sessionUser).isOwner;
 
+bool canInspectAdminUser(Json? session, Json target) {
+  final access = AdminAccess(session);
+  return access.isStaff && (access.isOwner || target['role'] == 'member');
+}
+
 String _date(dynamic value) {
   final parsed = DateTime.tryParse(str(value));
   if (parsed == null) return str(value, '未提供');
@@ -126,6 +131,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
       mounted &&
       AdminAccess(ref.read(sessionProvider).value).identity == identity;
   Future<void> loadBadges() async {
+    if (!canInspectAdminUser(ref.read(sessionProvider).value, user)) return;
     final identity = AdminAccess(ref.read(sessionProvider).value).identity;
     if (mounted) {
       setState(() {
@@ -364,6 +370,17 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
   );
   @override
   Widget build(BuildContext context) {
+    ref.listen(sessionProvider, (previous, next) {
+      if (canInspectAdminUser(next.value, user) &&
+          (!canInspectAdminUser(previous?.value, user) ||
+              AdminAccess(previous?.value).identity !=
+                  AdminAccess(next.value).identity)) {
+        loadBadges();
+      }
+    });
+    if (!canInspectAdminUser(ref.watch(sessionProvider).value, user)) {
+      return const AdminPage(title: '用户详情', child: Text('无权查看或管理该账号'));
+    }
     final mute = user['mutedUntil'] != null || str(user['state']) == 'muted';
     final ban = user['bannedUntil'] != null || str(user['state']) == 'banned';
     return AdminPage(
@@ -409,25 +426,33 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
             children: [
               if (mute)
                 AppOutlinedButton.icon(
-                  onPressed: () => lift('unmute'),
+                  onPressed: self || user['role'] == 'owner'
+                      ? null
+                      : () => lift('unmute'),
                   icon: const AppIcon(Icons.mic_rounded),
                   label: const Text('解除禁言'),
                 )
               else
                 AppFilledButton.tonalIcon(
-                  onPressed: () => punishment('mute'),
+                  onPressed: self || user['role'] == 'owner'
+                      ? null
+                      : () => punishment('mute'),
                   icon: const AppIcon(Icons.mic_off_outlined),
                   label: const Text('禁言'),
                 ),
               if (ban)
                 AppOutlinedButton.icon(
-                  onPressed: () => lift('unban'),
+                  onPressed: self || user['role'] == 'owner'
+                      ? null
+                      : () => lift('unban'),
                   icon: const AppIcon(Icons.lock_open_rounded),
                   label: const Text('解除封禁'),
                 )
               else
                 AppFilledButton.tonalIcon(
-                  onPressed: self ? null : () => punishment('ban'),
+                  onPressed: self || user['role'] == 'owner'
+                      ? null
+                      : () => punishment('ban'),
                   icon: const AppIcon(Icons.block_rounded),
                   label: const Text('封禁'),
                 ),
@@ -477,7 +502,7 @@ class _AdminUserDetailPageState extends ConsumerState<AdminUserDetailPage> {
               runSpacing: 8,
               children: [
                 AppOutlinedButton.icon(
-                  onPressed: role,
+                  onPressed: user['role'] == 'owner' ? null : role,
                   icon: const AppIcon(Icons.admin_panel_settings_outlined),
                   label: const Text('修改角色'),
                 ),

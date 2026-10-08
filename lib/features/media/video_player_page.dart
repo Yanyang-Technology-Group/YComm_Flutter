@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../../core/media/playback.dart';
+
 /// 帖子内视频播放页（整页 / 全屏路由）。
 ///
 /// 手机端就是这一页：左上角返回按钮 + 系统返回键都能退出。
-/// 桌面端先用同一页，独立播放窗口（desktop_multi_window）是下一步单独提交，
-/// 它需要各平台原生改动，和播放器本身分开验证更稳。
+/// 桌面端独立播放窗口与移动端共用这页播放器，窗口进程通过本地 IPC 更新媒体地址。
 class VideoPlayerPage extends StatefulWidget {
   const VideoPlayerPage({
     super.key,
@@ -19,9 +20,11 @@ class VideoPlayerPage extends StatefulWidget {
   });
   final String url;
   final String? title;
+
   /// 独立窗口里用「关闭窗口」，整页路由里用「返回上一页」。
   final VoidCallback? onClose;
-  /// 用软件渲染的视频输出面。desktop_multi_window 的第二引擎里，硬件加速的
+
+  /// 用软件渲染的视频输出面。独立窗口的第二引擎里，硬件加速的
   /// 输出面（Windows 上走 ANGLE 纹理互操作）拿不到帧，表现为「有进度条但画面全黑」，
   /// 软件输出面在两种窗口里都正常。
   final bool softwareSurface;
@@ -34,6 +37,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   late final VideoController controller;
   StreamSubscription<String>? errorSub;
   String? error;
+  int generation = 0;
 
   @override
   void initState() {
@@ -45,16 +49,35 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         enableHardwareAcceleration: !widget.softwareSurface,
       ),
     );
-    // 打开即播放；失败不弹错误页，播放器自己会显示加载/错误状态。
-    player.open(Media(widget.url));
     // 出画面之前先别让人对着黑屏猜：把 mpv 的报错原文显示出来。
     errorSub = player.stream.error.listen((message) {
+      if (isPlaybackWarning(message)) return;
       if (mounted) setState(() => error = message);
     });
+    _open();
+  }
+
+  Future<void> _open() async {
+    final ticket = ++generation;
+    try {
+      await openVideo(player, widget.url);
+    } catch (failure) {
+      if (mounted && ticket == generation) setState(() => error = '$failure');
+    }
+  }
+
+  @override
+  void didUpdateWidget(VideoPlayerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      error = null;
+      _open();
+    }
   }
 
   @override
   void dispose() {
+    generation++;
     errorSub?.cancel();
     player.dispose();
     super.dispose();
@@ -66,10 +89,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     body: Stack(
       children: [
         Center(
-          child: Video(
-            controller: controller,
-            controls: AdaptiveVideoControls,
-          ),
+          child: Video(controller: controller, controls: AdaptiveVideoControls),
         ),
         SafeArea(
           child: Align(
@@ -102,7 +122,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Text(
-                  '视频加载失败：$error\n如果这个地址在浏览器里也打不开，说明文件已不在服务器上。',
+                  '视频加载失败：$error',
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ),
