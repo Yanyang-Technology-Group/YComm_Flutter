@@ -1,5 +1,8 @@
 import 'package:media_kit/media_kit.dart';
 
+import 'playback_platform.dart'
+    if (dart.library.io) 'playback_platform_io.dart';
+
 const videoHttpHeaders = {
   'User-Agent': 'Mozilla/5.0 YCommFlutter',
   'Accept': '*/*',
@@ -13,11 +16,6 @@ bool isPlaybackWarning(String message) =>
     message.contains('Stream is not seekable');
 
 Future<void> openVideo(Player player, String url, {bool play = true}) async {
-  final native = player.platform;
-  if (native is NativePlayer) {
-    await native.setProperty('force-seekable', 'yes');
-    await native.setProperty('network-timeout', '20');
-    await native.setProperty('demuxer-readahead-secs', '8');
-  }
+  await configureNativePlayback(player);
   await player.open(Media(url, httpHeaders: videoHttpHeaders), play: play);
 }
